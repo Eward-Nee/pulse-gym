@@ -27,6 +27,7 @@ import {
   daysUntil,
 } from "../core/model";
 import { uid } from "../services/db";
+import { t } from "../i18n";
 export default function HyroxScreen({
   settings,
   onSettings,
@@ -34,7 +35,7 @@ export default function HyroxScreen({
   onClose,
 }: {
   settings: Settings;
-  onSettings: (s: Settings) => Promise<void>;
+  onSettings: (s: Partial<Settings>) => Promise<void>;
   onImport: (w: Workout[]) => Promise<void>;
   onClose: () => void;
 }) {
@@ -54,8 +55,12 @@ export default function HyroxScreen({
   const save = async () => {
     try {
       if (daysUntil(s.raceDate) < 0)
-        throw new Error("Kies ’n toekomstige wedrendatum.");
-      await onSettings(s);
+        throw new Error(t("Choose a future race date."));
+      await onSettings({
+        raceDate: s.raceDate,
+        level: s.level,
+        trainingDays: s.trainingDays,
+      });
       setSaved(true);
       setError("");
     } catch (e) {
@@ -63,15 +68,15 @@ export default function HyroxScreen({
     }
   };
   return (
-    <Sheet title="HYROX · Mixed Doubles" onClose={onClose}>
-      <Label>ONE TEAM. RACE READY.</Label>
+    <Sheet title={t("HYROX · Mixed Doubles")} onClose={onClose}>
+      <Label>{t("ONE TEAM. RACE READY.")}</Label>
       <Heading
-        title={"Julle pad na\ndie wegspring."}
-        subtitle="12 weke · basis, bou, spesifiek en taper"
+        title={t("Your road to\nthe start line.")}
+        subtitle={t("12 weeks · base, build, specific and taper")}
       />
       <Card>
         <Field
-          label="Wedrendatum (JJJJ-MM-DD)"
+          label={t("Race date (YYYY-MM-DD)")}
           value={s.raceDate}
           placeholder="2027-03-20"
           onChangeText={(raceDate) => {
@@ -80,29 +85,30 @@ export default function HyroxScreen({
           }}
         />
         <T muted size={12}>
-          Gebruik julle geboekte datum; daar is geen voorafgekose gebeurtenis
-          nie.
+          {t("Use your booked date; there is no preset event.")}
         </T>
         <Row style={{ marginTop: 16 }}>
           <Chip
-            label="Bou eers ’n basis"
+            label={t("Build a base first")}
             selected={s.level === "foundation"}
             onPress={() => set({ ...s, level: "foundation" })}
           />
           <Chip
-            label="Oefen gereeld"
+            label={t("Train regularly")}
             selected={s.level === "regular"}
             onPress={() => set({ ...s, level: "regular" })}
           />
         </Row>
         <T muted size={12} style={{ marginVertical: 8 }}>
-          Gereeld: reeds 30 min gemaklike draf en kragoefenervaring.
+          {t(
+            "Regular: already 30 min of easy running and strength training experience.",
+          )}
         </T>
         <Row>
           {([3, 4, 5] as const).map((trainingDays) => (
             <Chip
               key={trainingDays}
-              label={`${trainingDays} dae / week`}
+              label={t("{n} days / week", { n: trainingDays })}
               selected={s.trainingDays === trainingDays}
               onPress={() => set({ ...s, trainingDays })}
             />
@@ -111,7 +117,7 @@ export default function HyroxScreen({
         <Button
           primary
           label={
-            saved ? "Datum en voorkeure gestoor ✓" : "Stoor wedreninstellings"
+            saved ? t("Date and preferences saved ✓") : t("Save race settings")
           }
           onPress={() => void save()}
         />
@@ -122,16 +128,20 @@ export default function HyroxScreen({
             <T size={38} bold>
               {Math.max(0, position.days)}
             </T>
-            <T muted>dae tot julle wedren</T>
+            <T muted>{t("days until your race")}</T>
           </Row>
           <T muted>
             {position.days <= 0
-              ? "Wedrendag of herstel: moenie nou ekstra volume inhaal nie."
+              ? t("Race day or recovery: do not catch up on extra volume now.")
               : position.baseWeeks > 0
-                ? `${position.baseWeeks} weke voorbasis voor die 12-week blok.`
+                ? t("{n} weeks of pre-base before the 12-week block.", {
+                    n: position.baseWeeks,
+                  })
                 : position.days < 77
-                  ? "Korter aanloop: kies ’n gepaste fase met ’n afrigter; moenie gemiste volume inhaal nie."
-                  : "Genoeg ruimte vir die volledige 12-week blok."}
+                  ? t(
+                      "Shorter lead-up: pick a suitable phase with a coach; do not catch up on missed volume.",
+                    )
+                  : t("Plenty of room for the full 12-week block.")}
           </T>
         </Card>
       )}
@@ -147,7 +157,10 @@ export default function HyroxScreen({
       </Row>
       <View style={{ marginVertical: 14 }}>
         <Label>
-          WEEK {week} / {PHASES[week - 1].toUpperCase()}
+          {t("WEEK {w} / {phase}", {
+            w: week,
+            phase: t(PHASES[week - 1]).toUpperCase(),
+          })}
         </Label>
         {position && <T muted>{weekDates(s.raceDate, week)}</T>}
       </View>
@@ -174,37 +187,41 @@ export default function HyroxScreen({
         primary
         label={
           busy
-            ? "Voeg by…"
-            : `Voeg week ${week} se ${sessions.length} workouts by`
+            ? t("Adding…")
+            : t("Add week {w}’s {n} workouts", {
+                w: week,
+                n: sessions.length,
+              })
         }
         disabled={busy || !position || position.days <= 0}
         onPress={() => {
           setBusy(true);
           void onImport(sessions)
             .then(() =>
-              setError("Week by Home gevoeg. Jy kan elke workout wysig."),
+              setError(t("Week added to Home. You can edit each workout.")),
             )
             .catch((e) => setError(e.message))
             .finally(() => setBusy(false));
         }}
       />
       <Card style={{ marginTop: 18 }}>
-        <Label>MAATSTRATEGIE</Label>
+        <Label>{t("PARTNER STRATEGY")}</Label>
         <T>
-          Hardloop elke segment saam. Deel die stasiewerk volgens vermoë, nie
-          volgens geslag nie.
+          {t(
+            "Run every segment together. Split the station work by ability, not by gender.",
+          )}
         </T>
         <T muted size={12} style={{ marginTop: 10 }}>
-          Oefen 250 m SkiErg-beurte, 500 m row-beurte, 12.5 m sled-lengtes en
-          10-rep wall-ball stelle as beginpunt. Toets wissels; pas aan voordat
-          tegniek verval.
+          {t(
+            "Practice 250 m SkiErg turns, 500 m row turns, 12.5 m sled lengths and 10-rep wall-ball sets as a starting point. Test the switches; adjust before technique breaks down.",
+          )}
         </T>
       </Card>
       <Button
         label={
           showRules
-            ? "Verberg wedrenstandaarde"
-            : "8 stasies · amptelike 26/27-standaarde"
+            ? t("Hide race standards")
+            : t("8 stations · official 26/27 standards")
         }
         onPress={() => rules(!showRules)}
       />
@@ -216,26 +233,24 @@ export default function HyroxScreen({
                 {i + 1}. {name} · {distance}
               </T>
               <T muted size={12}>
-                {load || "Geen eksterne gewig"} · vooraf: 1 km saam
+                {load ? t(load) : t("No external weight")} ·{" "}
+                {t("preceded by: 1 km together")}
               </T>
             </View>
           ))}
           <Button
-            label="Lees amptelike reëls ↗"
+            label={t("Read official rules ↗")}
             onPress={() => void Linking.openURL(HYROX_SOURCE)}
           />
         </Card>
       )}
       <T muted size={12} style={{ marginTop: 18 }}>
-        Oorspronklike voorbeeldprogram, nie ’n amptelike HYROX-program of
-        persoonlike afrigting nie. Oefenladings begin onbevestig: stel dit
-        volgens elke maat se vermoë. Hou 2–3 reps in reserwe; herstel op die
-        ander dae. Verminder volume by aanhoudende moegheid. Pyn of beserings
-        benodig toepaslike professionele leiding. Herkontroleer reëls vir julle
-        wedrenseisoen.
+        {t(
+          "Original sample program, not an official HYROX program or personal coaching. Training loads start unconfirmed: set them to each partner’s ability. Keep 2–3 reps in reserve; recover on the other days. Reduce volume when fatigue persists. Pain or injury needs appropriate professional guidance. Re-check the rules for your race season.",
+        )}
       </T>
       <Button
-        label="Voorbereidingsbron ↗"
+        label={t("Preparation source ↗")}
         small
         onPress={() =>
           void Linking.openURL("https://hyrox.com/best-hyrox-preparation/")

@@ -1,3 +1,4 @@
+import { t, DEFAULT_LANGUAGE, type Language } from "../i18n";
 export type ExerciseKind = "strength" | "bodyweight" | "run" | "time";
 export type Exercise = {
   id: string;
@@ -52,8 +53,14 @@ export type Challenge = {
   status: "invited" | "accepted" | "completed" | "declined";
   delivered: number;
 };
+export type ActiveSession = {
+  workout: Workout;
+  startedAt: number;
+  completedSets: Record<string, number>;
+};
 export type Settings = {
   name: string;
+  language: Language;
   theme: "pulse" | "couples";
   wallpaper: "iron" | "steel" | "plain";
   reducedMotion: boolean;
@@ -71,7 +78,8 @@ export type Snapshot = {
   pendingCount: number;
 };
 export const DEFAULT_SETTINGS: Settings = {
-  name: "Atleet",
+  name: "Athlete",
+  language: DEFAULT_LANGUAGE,
   theme: "pulse",
   wallpaper: "iron",
   reducedMotion: false,
@@ -79,14 +87,15 @@ export const DEFAULT_SETTINGS: Settings = {
   level: "foundation",
   trainingDays: 3,
 };
+/** `label` is an English i18n key; translate with t() when rendering. */
 export const DURATIONS = [
-  { label: "1 uur", hours: 1 },
-  { label: "2 ure", hours: 2 },
-  { label: "4 ure", hours: 4 },
-  { label: "8 ure", hours: 8 },
-  { label: "1 dag", hours: 24 },
-  { label: "2 dae", hours: 48 },
-  { label: "3 dae", hours: 72 },
+  { label: "1 hour", hours: 1 },
+  { label: "2 hours", hours: 2 },
+  { label: "4 hours", hours: 4 },
+  { label: "8 hours", hours: 8 },
+  { label: "1 day", hours: 24 },
+  { label: "2 days", hours: 48 },
+  { label: "3 days", hours: 72 },
   { label: "1 week", hours: 168 },
 ];
 export function challengeState(c: Challenge, now = Date.now()) {
@@ -104,15 +113,15 @@ export function validateWorkout(w: Workout) {
     !w.name.trim() ||
     w.name.length > 80
   )
-    throw new Error("Gee die workout ’n naam van 1–80 karakters.");
+    throw new Error(t("Give the workout a name of 1–80 characters."));
   if (
     !Array.isArray(w.exercises) ||
     !w.exercises.length ||
     w.exercises.length > 60
   )
-    throw new Error("Kies 1–60 oefeninge.");
+    throw new Error(t("Choose 1–60 exercises."));
   if (typeof w.notes !== "string" || w.notes.length > 4000)
-    throw new Error("Workout-notas is ongeldig.");
+    throw new Error(t("Workout notes are invalid."));
   const ids = new Set<string>();
   for (const e of w.exercises) {
     if (
@@ -123,28 +132,28 @@ export function validateWorkout(w: Workout) {
       typeof e.notes !== "string" ||
       e.notes.length > 4000
     )
-      throw new Error("Ongeldige oefeninginhoud.");
-    if (ids.has(e.id)) throw new Error("Duplikaat-oefening ID.");
+      throw new Error(t("Invalid exercise content."));
+    if (ids.has(e.id)) throw new Error(t("Duplicate exercise ID."));
     ids.add(e.id);
     if (!e.name.trim() || e.name.length > 80)
-      throw new Error("Elke oefening benodig ’n naam.");
+      throw new Error(t("Every exercise needs a name."));
     if (!["strength", "bodyweight", "run", "time"].includes(e.kind))
-      throw new Error("Ongeldige oefeningsoort.");
+      throw new Error(t("Invalid exercise type."));
     if (!Number.isInteger(e.sets) || e.sets < 1 || e.sets > 100)
-      throw new Error("Stelle moet tussen 1 en 100 wees.");
+      throw new Error(t("Sets must be between 1 and 100."));
     for (const n of [e.reps, e.kg, e.seconds, e.meters, e.rest])
       if (!Number.isFinite(n) || n < 0 || n > 100000)
-        throw new Error("Gebruik geldige positiewe oefenwaardes.");
+        throw new Error(t("Use valid positive exercise values."));
     if (!Number.isInteger(e.reps))
-      throw new Error("Reps moet heelgetalle wees.");
+      throw new Error(t("Reps must be whole numbers."));
     if ((e.kind === "strength" || e.kind === "bodyweight") && e.reps < 1)
-      throw new Error("Voeg reps by.");
+      throw new Error(t("Add reps."));
     if (
       (e.kind === "run" || e.kind === "time") &&
       e.seconds <= 0 &&
       e.meters <= 0
     )
-      throw new Error("Voeg tyd of afstand by.");
+      throw new Error(t("Add time or distance."));
   }
   return w;
 }
@@ -152,11 +161,10 @@ export function dateOnly(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 export function parseDate(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value))
-    throw new Error("Gebruik JJJJ-MM-DD.");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error(t("Use YYYY-MM-DD."));
   const d = new Date(value + "T12:00:00");
   if (!Number.isFinite(+d) || dateOnly(d) !== value)
-    throw new Error("Ongeldige datum.");
+    throw new Error(t("Invalid date."));
   return d;
 }
 export function daysUntil(value: string, now = new Date()) {
@@ -175,12 +183,19 @@ export function move<T>(items: T[], from: number, to: number) {
   next.splice(to, 0, item);
   return next;
 }
+/** Values are English i18n keys; translate with t() when rendering. */
 export const EXERCISE_LABELS = {
-  strength: "Gewig",
-  bodyweight: "Liggaamsgewig",
-  run: "Draf / afstand",
-  time: "Tyd",
+  strength: "Weight",
+  bodyweight: "Bodyweight",
+  run: "Run / distance",
+  time: "Time",
 };
 export function exerciseSummary(e: Exercise) {
-  return `${e.sets} × ${e.kind === "strength" || e.kind === "bodyweight" ? e.reps + " reps" : e.meters ? e.meters + " m" : Math.round(e.seconds / 60) + " min"}${e.kind === "strength" ? " · " + e.kg + " kg" : ""}${e.rest ? " · " + e.rest + "s rus" : ""}`;
+  const work =
+    e.kind === "strength" || e.kind === "bodyweight"
+      ? t("{n} reps", { n: e.reps })
+      : e.meters
+        ? e.meters + " m"
+        : Math.round(e.seconds / 60) + " min";
+  return `${e.sets} × ${work}${e.kind === "strength" ? " · " + e.kg + " kg" : ""}${e.rest ? " · " + t("{n}s rest", { n: e.rest }) : ""}`;
 }

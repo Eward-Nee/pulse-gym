@@ -2,7 +2,7 @@
   "expo": {
     "name": "Pulse Gym",
     "slug": "pulse-gym",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -10,12 +10,12 @@
       "bundleIdentifier": "app.pulsegym.local",
       "supportsTablet": true,
       "infoPlist": {
-        "NSLocalNetworkUsageDescription": "Koppel direk met jou vriende vir ge\u00ebnkripteerde challenges en gedeelde workouts."
+        "NSLocalNetworkUsageDescription": "Connect directly with your friends for encrypted challenges and shared workouts."
       }
     },
     "android": {
       "package": "app.pulsegym.local",
-      "versionCode": 2,
+      "versionCode": 3,
       "permissions": [
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",

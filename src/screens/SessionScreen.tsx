@@ -1,27 +1,33 @@
 import React, { useEffect, useState, useRef } from "react";
 import { View } from "react-native";
 import { Button, Card, Row, Sheet, T, Label } from "../components/ui";
-import { exerciseSummary, type Workout, type Session } from "../core/model";
-import { database, storeSession, uid, serial } from "../services/db";
-export type ActiveSession = {
-  workout: Workout;
-  startedAt: number;
-  completedSets: Record<string, number>;
-};
+import { exerciseSummary, type ActiveSession } from "../core/model";
+import {
+  database,
+  saveActiveSession,
+  storeSession,
+  uid,
+  serial,
+} from "../services/db";
+import { t } from "../i18n";
+export type { ActiveSession };
 export default function SessionScreen({
   initial,
   onClose,
   onFinish,
+  onCancel,
 }: {
   initial: ActiveSession;
   onClose: () => void;
   onFinish: () => void;
+  onCancel: () => Promise<void>;
 }) {
   const [state, set] = useState(initial),
     [now, tick] = useState(Date.now()),
     [restUntil, setRest] = useState(0),
     [error, setError] = useState(""),
-    [saving, setSaving] = useState(false);
+    [saving, setSaving] = useState(false),
+    [confirmCancel, setConfirmCancel] = useState(false);
   useEffect(() => {
     const t = setInterval(() => tick(Date.now()), 1000);
     return () => clearInterval(t);
@@ -45,15 +51,7 @@ export default function SessionScreen({
           ),
         },
       };
-      await serial(
-        async () =>
-          await (
-            await database()
-          ).runAsync(
-            "INSERT OR REPLACE INTO active_session VALUES(1,?)",
-            JSON.stringify(next),
-          ),
-      );
+      await serial(() => saveActiveSession(next));
       set(next);
       if (delta > 0) setRest(Date.now() + e.rest * 1000);
     } finally {
@@ -85,9 +83,19 @@ export default function SessionScreen({
       setSaving(false);
     }
   }
+  async function cancel() {
+    if (marking.current || saving) return;
+    setSaving(true);
+    try {
+      await onCancel();
+    } catch (e) {
+      setError((e as Error).message);
+      setSaving(false);
+    }
+  }
   return (
-    <Sheet title="Jou sessie" onClose={onClose}>
-      <Label>FOKUS / EEN REP OP ’N SLAG</Label>
+    <Sheet title={t("Your session")} onClose={onClose}>
+      <Label>{t("FOCUS / ONE REP AT A TIME")}</Label>
       <T size={28} bold>
         {state.workout.name}
       </T>
@@ -97,20 +105,22 @@ export default function SessionScreen({
             {String(Math.floor(elapsed / 60)).padStart(2, "0")}:
             {String(elapsed % 60).padStart(2, "0")}
           </T>
-          <T muted>verstreke tyd</T>
+          <T muted>{t("elapsed time")}</T>
         </View>
         <View>
           <T size={28} bold>
             {done}/{total}
           </T>
-          <T muted>stelle voltooi</T>
+          <T muted>{t("sets completed")}</T>
         </View>
       </Row>
       {restUntil > now && (
         <Card>
-          <T bold>Rus · {Math.ceil((restUntil - now) / 1000)}s</T>
-          <T muted>Begin die volgende stel wanneer jy gereed is.</T>
-          <Button small label="Slaan rus oor" onPress={() => setRest(0)} />
+          <T bold>
+            {t("Rest · {n}s", { n: Math.ceil((restUntil - now) / 1000) })}
+          </T>
+          <T muted>{t("Start the next set when you are ready.")}</T>
+          <Button small label={t("Skip rest")} onPress={() => setRest(0)} />
         </Card>
       )}
       {state.workout.exercises.map((e) => (
@@ -139,7 +149,7 @@ export default function SessionScreen({
             <Button
               primary
               small
-              label="Stel klaar"
+              label={t("Set done")}
               disabled={(state.completedSets[e.id] || 0) >= e.sets}
               onPress={() =>
                 void mark(e.id, 1).catch((e) => setError(e.message))
@@ -153,18 +163,52 @@ export default function SessionScreen({
         primary
         label={
           saving
-            ? "Stoor…"
+            ? t("Saving…")
             : done === total
-              ? "Voltooi & stoor sessie"
-              : "Stoor gedeeltelike sessie"
+              ? t("Finish & save session")
+              : t("Save partial session")
         }
         disabled={saving || done === 0}
         onPress={() => void finish()}
       />
       <T muted size={12} style={{ marginTop: 12 }}>
-        Jy kan die skerm sluit en later hervat. Slegs gemerkte stelle tel in jou
-        geskiedenis.
+        {t(
+          "You can close this screen and resume later. Only marked sets count in your history.",
+        )}
       </T>
+      {confirmCancel ? (
+        <Card style={{ marginTop: 22 }}>
+          <T bold>{t("Cancel this workout?")}</T>
+          <T muted size={12} style={{ marginVertical: 10 }}>
+            {t(
+              "Your progress in this session is discarded and nothing is added to your history.",
+            )}
+          </T>
+          <Row>
+            <Button
+              label={t("Keep training")}
+              disabled={saving}
+              onPress={() => setConfirmCancel(false)}
+            />
+            <Button
+              label={t("Yes, cancel workout")}
+              danger
+              disabled={saving}
+              onPress={() => void cancel()}
+            />
+          </Row>
+        </Card>
+      ) : (
+        <View style={{ marginTop: 22 }}>
+          <Button
+            label={t("Cancel workout")}
+            icon="close-circle-outline"
+            danger
+            disabled={saving}
+            onPress={() => setConfirmCancel(true)}
+          />
+        </View>
+      )}
     </Sheet>
   );
 }

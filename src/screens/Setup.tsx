@@ -4,9 +4,11 @@ import {
   Image,
   Linking,
   Platform,
+  Pressable,
   ScrollView,
   Share,
   Switch,
+  Text,
   View,
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
@@ -22,14 +24,11 @@ import {
   Row,
   Sheet,
   T,
+  Wallpaper,
   useTheme,
 } from "../components/ui";
-import {
-  type Snapshot,
-  type Settings,
-  type Workout,
-  exerciseSummary,
-} from "../core/model";
+import { LANGUAGES, t, tn, locale } from "../i18n";
+import { type Snapshot, type Settings, type Workout } from "../core/model";
 import { parseInvite, fingerprint, type Invite } from "../core/protocol";
 import { getIdentity } from "../services/identity";
 import { setPartner, updateSettings, permissions, uid } from "../services/db";
@@ -82,13 +81,14 @@ export default function Setup({
     act(() => updateSettings(partial));
   return (
     <ScrollView
+      showsVerticalScrollIndicator={false}
       contentContainerStyle={{ padding: 22, paddingBottom: 40 }}
       keyboardShouldPersistTaps="handled"
     >
-      <Label>JOU RUIMTE / JOU REËLS</Label>
+      <Label>{t("YOUR SPACE / YOUR RULES")}</Label>
       <Heading
-        title="Make it yours."
-        subtitle="Kies jou voorkoms. Bring jou mense."
+        title={t("Make it yours.")}
+        subtitle={t("Pick your look. Bring your people.")}
       />
       <Card>
         <Row>
@@ -101,27 +101,38 @@ export default function Setup({
               Pulse Gym
             </T>
             <T muted size={12}>
-              Privaat. Plaaslik. Persoonlik.
+              {t("Private. Local. Personal.")}
             </T>
           </View>
         </Row>
         <View style={{ marginTop: 18 }}>
           <Field
-            label="Jou naam"
+            label={t("Your name")}
             value={name}
             maxLength={60}
             onChangeText={setName}
           />
           <Button
             small
-            label="Stoor naam"
+            label={t("Save name")}
             onPress={() => {
               if (name.trim()) patch({ name: name.trim() });
             }}
           />
         </View>
       </Card>
-      <Label>TEMA</Label>
+      <Label>{t("LANGUAGE")}</Label>
+      <Row style={{ marginBottom: 18 }}>
+        {LANGUAGES.map((l) => (
+          <Chip
+            key={l.code}
+            label={l.label}
+            selected={data.settings.language === l.code}
+            onPress={() => patch({ language: l.code })}
+          />
+        ))}
+      </Row>
+      <Label>{t("THEME")}</Label>
       <Row style={{ marginBottom: 18 }}>
         <Chip
           label="Pulse Social"
@@ -137,19 +148,22 @@ export default function Setup({
       <Card>
         <Row style={{ justifyContent: "space-between" }}>
           <T size={18} bold>
-            Jou partner
+            {t("Your partner")}
           </T>
-          <Pill>Max. 1</Pill>
+          <Pill>{t("Max. 1")}</Pill>
         </Row>
         <T muted size={12} style={{ marginVertical: 10 }}>
-          Kies een aanvaarde, geverifieerde vriend. Die Couples-tema werk ook
-          voordat jy ’n partner kies.
+          {t(
+            "Pick one accepted, verified friend. The Couples theme also works before you pick a partner.",
+          )}
         </T>
         <Row>
           <Chip
-            label="Geen partner"
+            label={t("No partner")}
             selected={!data.partnerId}
-            onPress={() => act(() => setPartner(null), "Partner ontkoppel.")}
+            onPress={() =>
+              act(() => setPartner(null), t("Partner disconnected."))
+            }
           />
           {eligible.map((f) => (
             <Chip
@@ -159,7 +173,7 @@ export default function Setup({
               onPress={() =>
                 act(
                   () => setPartner(f.id),
-                  `${f.name} is nou jou enigste partner.`,
+                  t("{name} is now your only partner.", { name: f.name }),
                 )
               }
             />
@@ -172,30 +186,56 @@ export default function Setup({
         )}
         {!eligible.length && (
           <T muted size={12}>
-            Voeg ’n vriend hieronder by en verifieer die sleutel.
+            {t("Add a friend below and verify the key.")}
           </T>
         )}
       </Card>
-      <Label>WALLPAPER</Label>
-      <Row style={{ marginBottom: 18 }}>
+      <Label>{t("WALLPAPER")}</Label>
+      <View style={{ flexDirection: "row", gap: 10, marginBottom: 18 }}>
         {(
           [
-            ["iron", "Iron / warm"],
-            ["steel", "Steel / koel"],
-            ["plain", "Rustig / solied"],
+            ["iron", t("Iron / warm")],
+            ["steel", t("Steel / cool")],
+            ["plain", t("Calm / solid")],
           ] as const
-        ).map(([wallpaper, label]) => (
-          <Chip
-            key={wallpaper}
-            label={label}
-            selected={data.settings.wallpaper === wallpaper}
-            onPress={() => patch({ wallpaper })}
-          />
-        ))}
-      </Row>
+        ).map(([wallpaper, label]) => {
+          const selected = data.settings.wallpaper === wallpaper;
+          return (
+            <Pressable
+              key={wallpaper}
+              accessibilityRole="button"
+              accessibilityLabel={label}
+              accessibilityState={{ selected }}
+              onPress={() => patch({ wallpaper })}
+              style={{ flex: 1 }}
+            >
+              <Wallpaper
+                wallpaper={wallpaper}
+                couples={data.settings.theme === "couples"}
+                style={{
+                  height: 86,
+                  borderRadius: 16,
+                  borderWidth: 2,
+                  borderColor: selected ? c.accent : c.line,
+                  justifyContent: "flex-end",
+                  padding: 8,
+                }}
+              >
+                <Text
+                  numberOfLines={2}
+                  style={{ color: "#fff", fontSize: 11, fontWeight: "700" }}
+                >
+                  {selected ? "✓ " : ""}
+                  {label}
+                </Text>
+              </Wallpaper>
+            </Pressable>
+          );
+        })}
+      </View>
       <Card>
         <Row style={{ justifyContent: "space-between" }}>
-          <T>Verminder animasie</T>
+          <T>{t("Reduce motion")}</T>
           <Switch
             value={data.settings.reducedMotion}
             onValueChange={(reducedMotion) => patch({ reducedMotion })}
@@ -205,45 +245,52 @@ export default function Setup({
       </Card>
       <Card>
         <Label>HYROX MIXED DOUBLES</Label>
-        <T bold>{data.settings.raceDate || "Jou wedrendatum wag."}</T>
+        <T bold>{data.settings.raceDate || t("Your race date is waiting.")}</T>
         <T muted size={12} style={{ marginVertical: 10 }}>
-          Beginner- of gereelde oefenbasis, 3–5 dae en redigeerbare
-          weekprogramme.
+          {t(
+            "Beginner or regular training base, 3–5 days and editable weekly programs.",
+          )}
         </T>
         <Button
-          label="Stel datum & program"
+          label={t("Set date & program")}
           icon="calendar-outline"
           onPress={onHyrox}
         />
       </Card>
       <Heading
-        title="Jou mense."
-        subtitle="Koppel direk. Geen sentrale vriendedatabasis nie."
+        title={t("Your people.")}
+        subtitle={t("Connect directly. No central friend database.")}
       />
       <Card>
-        <Label>DIREKTE VERBINDING</Label>
+        <Label>{t("DIRECT CONNECTION")}</Label>
         <T size={12} muted>
           {networkStatus}
         </T>
         <T muted size={12} style={{ marginTop: 8 }}>
-          Gebruik dieselfde Wi-Fi, met albei apps oop. Die lang uitnodigingskode
-          bevat jou deelbare ID, publieke sleutel en netwerkadres. ’n Kort ID
-          alleen kan nie ’n foon op die internet opspoor nie.
+          {t(
+            "Use the same Wi-Fi, with both apps open. The long invitation code contains your shareable ID, public key and network address. A short ID alone cannot locate a phone on the internet.",
+          )}
         </T>
         {!canConnect() && (
           <T muted size={12} style={{ marginTop: 8 }}>
             {Platform.OS === "web"
-              ? "Hierdie blaaierweergawe is vir jou eie workouts en ontwerpbeoordeling. Koppeling vereis die native bou."
-              : "Direkte sockets vereis ’n ontwikkelings- of vrystellingsbou; Expo Go bevat dit nie."}
+              ? t(
+                  "This browser version is for your own workouts and design review. Connecting requires the native build.",
+                )
+              : t(
+                  "Direct sockets require a development or release build; Expo Go does not include them.",
+                )}
           </T>
         )}
         <View style={{ marginTop: 14 }}>
           <Button
-            label="Wys my ID"
+            label={id ? t("Hide ID") : t("Show my ID")}
             onPress={() =>
-              act(async () => {
-                setId((await getIdentity()).id);
-              })
+              id
+                ? setId("")
+                : act(async () => {
+                    setId((await getIdentity()).id);
+                  })
             }
           />
         </View>
@@ -254,7 +301,7 @@ export default function Setup({
         )}
         <View style={{ marginTop: 10 }}>
           <Button
-            label="Skep uitnodigingskode"
+            label={t("Create invitation code")}
             icon="share-social-outline"
             disabled={!canConnect()}
             onPress={() => act(async () => setMyCode(await ownInvite()))}
@@ -263,7 +310,7 @@ export default function Setup({
         {!!myCode && (
           <>
             <Field
-              label="Jou uitnodiging"
+              label={t("Your invitation")}
               value={myCode}
               multiline
               editable={false}
@@ -271,17 +318,17 @@ export default function Setup({
             <Row>
               <Button
                 small
-                label="Kopieer"
+                label={t("Copy")}
                 onPress={() =>
                   act(
                     () => Clipboard.setStringAsync(myCode),
-                    "Uitnodiging gekopieer.",
+                    t("Invitation copied."),
                   )
                 }
               />
               <Button
                 small
-                label="Deel"
+                label={t("Share")}
                 onPress={() => act(() => Share.share({ message: myCode }))}
               />
             </Row>
@@ -290,7 +337,7 @@ export default function Setup({
       </Card>
       <Card>
         <Field
-          label="Voeg vriend by via uitnodigingskode"
+          label={t("Add a friend via invitation code")}
           placeholder="PULSE1:…"
           value={code}
           multiline
@@ -298,7 +345,7 @@ export default function Setup({
           onChangeText={setCode}
         />
         <Button
-          label="Lees uitnodiging"
+          label={t("Read invitation")}
           disabled={!canConnect()}
           onPress={() =>
             act(async () => {
@@ -310,8 +357,10 @@ export default function Setup({
       {data.friends.length === 0 && (
         <Empty
           icon="people-outline"
-          title="Maak jou kring oop."
-          body="Deel jou kode met ’n vriend. Bevestig dan mekaar se sleutelvingerafdruk."
+          title={t("Open your circle.")}
+          body={t(
+            "Share your code with a friend. Then confirm each other’s key fingerprint.",
+          )}
         />
       )}
       {data.friends.map((f) => (
@@ -323,44 +372,46 @@ export default function Setup({
                 {f.id === data.partnerId ? " ♥" : ""}
               </T>
               <T muted size={11}>
-                {f.status === "accepted" ? "Vriend" : "Wag op aanvaarding"} ·{" "}
-                {f.verified ? "sleutel geverifieer" : "sleutel onbevestig"}
+                {f.status === "accepted"
+                  ? t("Friend")
+                  : t("Waiting for acceptance")}{" "}
+                · {f.verified ? t("key verified") : t("key unverified")}
               </T>
             </View>
-            <Button label="Bekyk" small onPress={() => showFriend(f.id)} />
+            <Button label={t("View")} small onPress={() => showFriend(f.id)} />
           </Row>
         </Card>
       ))}
       <Card>
-        <Label>KENNISGEWINGS</Label>
+        <Label>{t("NOTIFICATIONS")}</Label>
         <T muted size={12} style={{ marginBottom: 12 }}>
-          Ontvang ’n plaaslike kennisgewing wanneer ’n direkte challenge aankom,
-          en ’n herinnering by die sperdatum. ’n Geslote app word nie sonder ’n
-          push-diens wakker gemaak nie.
+          {t(
+            "Get a local notification when a direct challenge arrives, and a reminder at the deadline. A closed app is not woken up without a push service.",
+          )}
         </T>
         {notifications.status === "enabled" ? (
-          <Pill>Kennisgewings geaktiveer</Pill>
+          <Pill>{t("Notifications enabled")}</Pill>
         ) : notifications.status === "unsupported" ? (
-          <T muted>Kennisgewings is beskikbaar in die Android-app.</T>
+          <T muted>{t("Notifications are available in the Android app.")}</T>
         ) : (
           <>
             {notifications.status === "error" && (
-              <T muted>Kon nie toestemming nagaan nie. Probeer weer.</T>
+              <T muted>{t("Could not check permission. Try again.")}</T>
             )}
             {notifications.status === "blocked" && (
               <T muted>
-                Laat kennisgewings in jou foon se app-instellings toe.
+                {t("Allow notifications in your phone’s app settings.")}
               </T>
             )}
             <Button
               label={
                 notifications.status === "checking"
-                  ? "Kontroleer toestemming…"
+                  ? t("Checking permission…")
                   : notifications.status === "blocked"
-                    ? "Open kennisgewing-instellings"
+                    ? t("Open notification settings")
                     : notifications.status === "error"
-                      ? "Probeer weer"
-                      : "Aktiveer kennisgewings"
+                      ? t("Try again")
+                      : t("Enable notifications")
               }
               icon="notifications-outline"
               disabled={notifications.status === "checking"}
@@ -378,12 +429,12 @@ export default function Setup({
         )}
       </Card>
       <Card>
-        <Label>APP-OPDATERINGS</Label>
+        <Label>{t("APP UPDATES")}</Label>
         <T muted size={12} style={{ marginBottom: 12 }}>
-          Soek die jongste Pulse Gym-weergawe. Geen opstelling nodig nie.
+          {t("Look for the latest Pulse Gym version. No setup needed.")}
         </T>
         <Button
-          label={working ? "Kontroleer…" : "Soek opdatering"}
+          label={working ? t("Checking…") : t("Check for update")}
           disabled={working}
           icon="download-outline"
           onPress={() => {
@@ -403,8 +454,8 @@ export default function Setup({
             <T bold>
               {release.version} ·{" "}
               {release.newer
-                ? "Nuwe weergawe beskikbaar"
-                : "Geen nuwer stabiele weergawe nie"}
+                ? t("New version available")
+                : t("No newer stable version")}
             </T>
             <T muted size={12} style={{ marginVertical: 10 }}>
               {release.notes}
@@ -413,10 +464,10 @@ export default function Setup({
               <Button
                 label={
                   working
-                    ? "Laai af & verifieer…"
+                    ? t("Downloading & verifying…")
                     : release.apk && Platform.OS === "android"
-                      ? "Laai APK af & open installeerder"
-                      : "Open GitHub-release"
+                      ? t("Download APK & open installer")
+                      : t("Open GitHub release")
                 }
                 disabled={working}
                 onPress={() => {
@@ -434,34 +485,36 @@ export default function Setup({
           </View>
         )}
         <T muted size={11} style={{ marginTop: 12 }}>
-          Installeer ’n geboude release, nie bronkode nie. Android bevestig die
-          installasie; iPhone-verspreiding benodig Apple se ondersteunde roete.
+          {t(
+            "Install a built release, not source code. Android confirms the installation; iPhone distribution needs Apple’s supported route.",
+          )}
         </T>
       </Card>
       {!!note && <T style={{ color: c.accent }}>{note}</T>}
       <T size={11} muted style={{ textAlign: "center" }}>
-        Pulse Gym {appConfig.expo.version} · SQLite op jou toestel
+        Pulse Gym {appConfig.expo.version} · {t("SQLite on your device")}
       </T>
       {invite && (
-        <Sheet title="Verifieer jou vriend" onClose={() => setInvite(null)}>
+        <Sheet title={t("Verify your friend")} onClose={() => setInvite(null)}>
           <Heading title={invite.name} subtitle={invite.id} />
-          <Label>PUBLIEKE SLEUTELVINGERAFDRUK</Label>
+          <Label>{t("PUBLIC KEY FINGERPRINT")}</Label>
           <T selectable size={12}>
             {fingerprint(invite.publicKey)}
           </T>
           <T muted style={{ marginVertical: 20 }}>
-            Vergelyk die volle kode met jou vriend deur ’n kanaal wat jy
-            vertrou. Voeg net die vriend by as dit ooreenstem.
+            {t(
+              "Compare the full code with your friend through a channel you trust. Only add the friend if it matches.",
+            )}
           </T>
           <Button
             primary
-            label="Sleutel stem ooreen · stuur versoek"
+            label={t("Key matches · send request")}
             onPress={() =>
               act(async () => {
                 await addFriend(code.trim());
                 setInvite(null);
                 setCode("");
-              }, "Versoek in uitboks. Jou vriend moet dit aanvaar.")
+              }, t("Request in outbox. Your friend must accept it."))
             }
           />
         </Sheet>
@@ -470,36 +523,38 @@ export default function Setup({
         <Sheet title={friend.name} onClose={() => showFriend(null)}>
           <Pill>
             {friend.id === data.partnerId
-              ? "Jou partner"
+              ? t("Your partner")
               : friend.status === "accepted"
-                ? "Jou vriend"
-                : "Vriendskapsversoek"}
+                ? t("Your friend")
+                : t("Friend request")}
           </Pill>
-          <Label>PUBLIEKE SLEUTELVINGERAFDRUK</Label>
+          <Label>{t("PUBLIC KEY FINGERPRINT")}</Label>
           <T selectable size={12}>
             {fingerprint(friend.publicKey)}
           </T>
           {friend.status === "pending" && (
             <>
               <T muted style={{ marginVertical: 16 }}>
-                Vergelyk die volle vingerafdruk met jou vriend voor aanvaarding.
+                {t(
+                  "Compare the full fingerprint with your friend before accepting.",
+                )}
               </T>
               <Button
                 primary
-                label="Geverifieer · aanvaar vriend"
+                label={t("Verified · accept friend")}
                 onPress={() =>
                   act(
                     () => acceptFriend(friend.id),
-                    "Vriend aanvaar. Bevestiging in uitboks.",
+                    t("Friend accepted. Confirmation in outbox."),
                   )
                 }
               />
             </>
           )}
           <Card style={{ marginTop: 20 }}>
-            <Label>JOU DEELTOESTEMMING</Label>
+            <Label>{t("YOUR SHARING PERMISSIONS")}</Label>
             <Row style={{ justifyContent: "space-between", marginBottom: 12 }}>
-              <T>My templates</T>
+              <T>{t("My templates")}</T>
               <Switch
                 disabled={friend.status !== "accepted"}
                 value={!!friend.shareTemplates}
@@ -507,12 +562,12 @@ export default function Setup({
                   act(async () => {
                     await permissions(friend.id, v, !!friend.shareHistory);
                     await shareSnapshot(friend.id);
-                  }, "Deelvoorkeur gestoor; sinkronisering in uitboks.")
+                  }, t("Sharing preference saved; sync in outbox."))
                 }
               />
             </Row>
             <Row style={{ justifyContent: "space-between" }}>
-              <T>My geskiedenis</T>
+              <T>{t("My history")}</T>
               <Switch
                 disabled={friend.status !== "accepted"}
                 value={!!friend.shareHistory}
@@ -520,36 +575,37 @@ export default function Setup({
                   act(async () => {
                     await permissions(friend.id, !!friend.shareTemplates, v);
                     await shareSnapshot(friend.id);
-                  }, "Deelvoorkeur gestoor; sinkronisering in uitboks.")
+                  }, t("Sharing preference saved; sync in outbox."))
                 }
               />
             </Row>
             <T muted size={11} style={{ marginVertical: 12 }}>
-              Afskakel stuur ’n leë gedeelde aansig by die volgende verbinding.
-              Reeds ingevoerde kopieë kan nie teruggetrek word nie.
+              {t(
+                "Switching off sends an empty shared view at the next connection. Copies already imported cannot be withdrawn.",
+              )}
             </T>
             <Button
-              label="Deel nuutste weergawe"
+              label={t("Share latest version")}
               disabled={friend.status !== "accepted"}
               onPress={() =>
                 act(
                   () => shareSnapshot(friend.id),
-                  "Nuutste gedeelde data in uitboks.",
+                  t("Latest shared data in outbox."),
                 )
               }
             />
           </Card>
-          <Label>VRIEND SE GEDEELDE TEMPLATES</Label>
+          <Label>{t("FRIEND’S SHARED TEMPLATES")}</Label>
           {friend.templates.length ? (
             friend.templates.map((w) => (
               <Card key={w.id}>
                 <T bold>{w.name}</T>
                 <T muted size={12}>
-                  {w.exercises.length} oefeninge
+                  {tn(w.exercises.length, "{n} exercise", "{n} exercises")}
                 </T>
                 <Button
                   small
-                  label="Gebruik template"
+                  label={t("Use template")}
                   onPress={() =>
                     onImport({
                       ...w,
@@ -561,30 +617,32 @@ export default function Setup({
               </Card>
             ))
           ) : (
-            <T muted>Jou vriend het nog geen templates gedeel nie.</T>
+            <T muted>{t("Your friend has not shared any templates yet.")}</T>
           )}
-          <Label>VRIEND SE GEDEELDE GESKIEDENIS</Label>
+          <Label>{t("FRIEND’S SHARED HISTORY")}</Label>
           {friend.history.length ? (
             friend.history.map((h, i) => (
               <View key={i} style={{ marginBottom: 12 }}>
                 <T bold>{h.name}</T>
                 <T muted size={12}>
-                  {new Date(h.finishedAt).toLocaleDateString()} ·{" "}
+                  {new Date(h.finishedAt).toLocaleDateString(locale())} ·{" "}
                   {Math.round(h.seconds / 60)} min
                 </T>
               </View>
             ))
           ) : (
-            <T muted>Nog geen gedeelde geskiedenis nie.</T>
+            <T muted>{t("No shared history yet.")}</T>
           )}
           {!!friend.syncedAt && (
             <T muted size={11}>
-              Laas ontvang: {new Date(friend.syncedAt).toLocaleString()}
+              {t("Last received: {date}", {
+                date: new Date(friend.syncedAt).toLocaleString(locale()),
+              })}
             </T>
           )}
           <View style={{ marginTop: 24 }}>
             <Button
-              label="Verwyder vriend"
+              label={t("Remove friend")}
               danger
               onPress={() => {
                 showFriend(null);

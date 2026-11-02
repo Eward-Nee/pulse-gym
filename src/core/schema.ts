@@ -12,5 +12,5 @@ CREATE TABLE IF NOT EXISTS challenges (id TEXT PRIMARY KEY, friendId TEXT NOT NU
 CREATE INDEX IF NOT EXISTS challenge_deadline ON challenges(deadline);
 CREATE TABLE IF NOT EXISTS outbox (id TEXT PRIMARY KEY, friendId TEXT NOT NULL REFERENCES friends(id) ON DELETE CASCADE, packet TEXT NOT NULL, createdAt INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS receipts (id TEXT PRIMARY KEY, receivedAt INTEGER NOT NULL);
-PRAGMA user_version = 1;
 `;
+export const SCHEMA_VERSION = 1;

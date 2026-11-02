@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import * as Crypto from "expo-crypto";
 import * as Network from "expo-network";
 import {
@@ -49,7 +50,7 @@ async function enqueue(
   messageId = uid(),
 ) {
   const f = await findFriend(friendId);
-  if (!f) throw new Error("Vriend nie gevind nie.");
+  if (!f) throw new Error(t("Friend not found."));
   const me = await getIdentity();
   const packet = seal(
     me,
@@ -71,7 +72,7 @@ async function enqueue(
 export async function addFriend(code: string) {
   const invite = parseInvite(code),
     me = await getIdentity();
-  if (invite.id === me.id) throw new Error("Dit is jou eie uitnodiging.");
+  if (invite.id === me.id) throw new Error(t("That is your own invitation."));
   const d = await database();
   const old = await findFriend(invite.id);
   await d.runAsync(
@@ -84,8 +85,8 @@ export async function addFriend(code: string) {
   );
   await enqueue(invite.id, "hello", { invite: await ownInvite() });
   return old
-    ? "Adres opgedateer; versoek in uitboks."
-    : "Vriendskapsversoek in uitboks.";
+    ? t("Address updated; request in outbox.")
+    : t("Friend request in outbox.");
 }
 export async function acceptFriend(id: string) {
   const d = await database();
@@ -100,7 +101,7 @@ export async function acceptFriend(id: string) {
 export async function sendChallenge(c: Challenge) {
   const f = await findFriend(c.friendId);
   if (!f || f.status !== "accepted" || !f.verified)
-    throw new Error("Kies ’n geverifieerde vriend.");
+    throw new Error(t("Choose a verified friend."));
   const d = await database();
   await d.withTransactionAsync(async () => {
     await putChallenge(c);
@@ -117,14 +118,14 @@ export async function respondChallenge(
   status: "accepted" | "declined" | "completed",
 ) {
   if (c.direction !== "incoming" || challengeState(c) === "expired")
-    throw new Error("Hierdie uitdaging kan nie verander word nie.");
+    throw new Error(t("This challenge cannot be changed."));
   if (status === "completed" && c.status !== "accepted")
-    throw new Error("Aanvaar eers die challenge.");
+    throw new Error(t("Accept the challenge first."));
   if (
     (status === "accepted" || status === "declined") &&
     c.status !== "invited"
   )
-    throw new Error("Die uitnodiging is reeds beantwoord.");
+    throw new Error(t("The invitation has already been answered."));
   const d = await database();
   await d.withTransactionAsync(async () => {
     await d.runAsync("UPDATE challenges SET status=? WHERE id=?", status, c.id);
@@ -138,7 +139,7 @@ export async function respondChallenge(
 export async function shareSnapshot(id: string) {
   const f = await findFriend(id);
   if (!f || f.status !== "accepted" || !f.verified)
-    throw new Error("Verifieer eers die vriend.");
+    throw new Error(t("Verify the friend first."));
   const s = await snapshot();
   await enqueue(id, "snapshot", {
     templates: f.shareTemplates ? s.workouts.slice(0, 30) : [],
@@ -154,33 +155,40 @@ export async function flush() {
     const d = await database(),
       me = await getIdentity();
     const failed = new Set<string>();
-    const pending = await d.getAllAsync<{
-      id: string;
-      friendId: string;
-      packet: string;
-    }>("SELECT * FROM outbox ORDER BY createdAt,rowid LIMIT 30");
+    // Reads share the single connection with transactions, so queue them too.
+    const pending = await serial(() =>
+      d.getAllAsync<{
+        id: string;
+        friendId: string;
+        packet: string;
+      }>("SELECT * FROM outbox ORDER BY createdAt,rowid LIMIT 30"),
+    );
     for (const row of pending) {
       if (failed.has(row.friendId)) continue;
-      const expired = await d.getFirstAsync(
-        "SELECT id FROM challenges WHERE id=? AND deadline<=?",
-        row.id,
-        Date.now(),
-      );
+      const { expired, f } = await serial(async () => ({
+        expired: await d.getFirstAsync(
+          "SELECT id FROM challenges WHERE id=? AND deadline<=?",
+          row.id,
+          Date.now(),
+        ),
+        f: await findFriend(row.friendId),
+      }));
       if (expired) {
         await serial(() => d.runAsync("DELETE FROM outbox WHERE id=?", row.id));
         continue;
       }
-      const f = await findFriend(row.friendId);
-      if (!f) continue;
+      if (!f) {
+        await serial(() => d.runAsync("DELETE FROM outbox WHERE id=?", row.id));
+        continue;
+      }
       try {
         const reply = JSON.parse(
           await request(f.host, f.port, row.packet),
         ) as Packet;
-        if (reply.from !== f.publicKey)
-          throw new Error("Verkeerde antwoord-sleutel.");
+        if (reply.from !== f.publicKey) throw new Error(t("Wrong reply key."));
         const ack = open(me, reply);
         if (ack.type !== "ack" || (ack.body as any)?.id !== row.id)
-          throw new Error("Geen geldige ontvangsbevestiging.");
+          throw new Error(t("No valid delivery receipt."));
         await serial(async () => {
           await d.runAsync("DELETE FROM outbox WHERE id=?", row.id);
           await d.runAsync(
@@ -216,14 +224,15 @@ async function receive(line: string) {
       const b = m.body as any;
       if (m.type === "hello") {
         if (!b || typeof b.invite !== "string")
-          throw new Error("Ongeldige uitnodiging.");
+          throw new Error(t("Invalid invitation."));
         const invite = parseInvite(b.invite);
         if (invite.publicKey !== packet.from)
-          throw new Error("Sleutel pas nie.");
+          throw new Error(t("Key does not match."));
         const count = await d.getFirstAsync<{ n: number }>(
           "SELECT count(*) n FROM friends",
         );
-        if (!f && (count?.n || 0) >= 50) throw new Error("Vriendelys vol.");
+        if (!f && (count?.n || 0) >= 50)
+          throw new Error(t("Friend list full."));
         await d.runAsync(
           `INSERT INTO friends(id,name,publicKey,host,port,status) VALUES(?,?,?,?,?,'pending') ON CONFLICT(id) DO UPDATE SET host=excluded.host,port=excluded.port`,
           sender,
@@ -232,14 +241,14 @@ async function receive(line: string) {
           invite.host,
           invite.port,
         );
-        alert = "Nuwe vriendskapsversoek: " + invite.name;
+        alert = t("New friend request: {name}", { name: invite.name });
       } else {
-        if (!f) throw new Error("Onbekende afsender.");
+        if (!f) throw new Error(t("Unknown sender."));
         if (m.type === "accepted") {
-          if (!f.verified) throw new Error("Verifieer die uitnodiging.");
+          if (!f.verified) throw new Error(t("Verify the invitation."));
           const invite = parseInvite(b?.invite);
           if (invite.publicKey !== packet.from)
-            throw new Error("Sleutel pas nie.");
+            throw new Error(t("Key does not match."));
           await d.runAsync(
             "UPDATE friends SET status='accepted',host=?,port=? WHERE id=?",
             invite.host,
@@ -248,7 +257,7 @@ async function receive(line: string) {
           );
         } else {
           if (f.status !== "accepted" || !f.verified)
-            throw new Error("Vriend is nog nie geverifieer nie.");
+            throw new Error(t("Friend is not verified yet."));
           if (m.type === "challenge") {
             if (
               !b ||
@@ -268,7 +277,7 @@ async function receive(line: string) {
               b.deadline <= Date.now() ||
               b.status !== "invited"
             )
-              throw new Error("Ongeldige of verstreke challenge.");
+              throw new Error(t("Invalid or expired challenge."));
             await putChallenge({
               ...b,
               friendId: sender,
@@ -276,7 +285,10 @@ async function receive(line: string) {
               status: "invited",
               delivered: 1,
             });
-            alert = f.name + " daag jou uit: " + b.title;
+            alert = t("{name} challenges you: {title}", {
+              name: f.name,
+              title: b.title,
+            });
           } else if (m.type === "challenge-status") {
             if (
               !b ||
@@ -285,14 +297,14 @@ async function receive(line: string) {
               !Number.isFinite(b.at) ||
               b.at > m.sentAt + 1000
             )
-              throw new Error("Ongeldige status.");
+              throw new Error(t("Invalid status."));
             const c = await d.getFirstAsync<Challenge>(
               "SELECT * FROM challenges WHERE id=? AND friendId=? AND direction='outgoing'",
               b.id,
               sender,
             );
-            if (!c) throw new Error("Challenge onbekend.");
-            if (b.at > c.deadline) throw new Error("Sperdatum verby.");
+            if (!c) throw new Error(t("Unknown challenge."));
+            if (b.at > c.deadline) throw new Error(t("Deadline passed."));
             const legal =
               (c.status === "invited" &&
                 (b.status === "accepted" || b.status === "declined")) ||
@@ -311,7 +323,7 @@ async function receive(line: string) {
               b.templates.length > 30 ||
               b.history.length > 30
             )
-              throw new Error("Ongeldige deelpakket.");
+              throw new Error(t("Invalid share packet."));
             for (const w of b.templates) validateWorkout(w as Workout);
             for (const h of b.history) {
               if (
@@ -321,7 +333,7 @@ async function receive(line: string) {
                 !Number.isFinite(h.seconds) ||
                 h.seconds < 0
               )
-                throw new Error("Ongeldige geskiedenis.");
+                throw new Error(t("Invalid history."));
             }
             await d.runAsync(
               "UPDATE friends SET templates=?,history=?,syncedAt=? WHERE id=?",
@@ -330,7 +342,7 @@ async function receive(line: string) {
               Date.now(),
               sender,
             );
-          } else throw new Error("Onverwagte boodskap.");
+          } else throw new Error(t("Unexpected message."));
         }
       }
       await d.runAsync("INSERT INTO receipts VALUES(?,?)", receipt, Date.now());

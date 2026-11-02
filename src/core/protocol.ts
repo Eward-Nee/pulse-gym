@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import { x25519 } from "@noble/curves/ed25519.js";
 import { xchacha20poly1305 } from "@noble/ciphers/chacha.js";
 import { sha256 } from "@noble/hashes/sha2.js";
@@ -66,7 +67,7 @@ export function parseInvite(text: string): Invite {
     text.length > 3000 ||
     !text.startsWith("PULSE1:")
   )
-    throw new Error("Plak die volledige PULSE1-uitnodigingskode.");
+    throw new Error(t("Paste the full PULSE1 invitation code."));
   let x: Invite;
   try {
     const encoded = text.slice(7);
@@ -80,7 +81,7 @@ export function parseInvite(text: string): Invite {
       throw new Error("Non-canonical base64url");
     x = JSON.parse(bytes.toString("utf8"));
   } catch {
-    throw new Error("Die uitnodigingskode is ongeldig.");
+    throw new Error(t("The invitation code is invalid."));
   }
   if (
     !x ||
@@ -96,7 +97,7 @@ export function parseInvite(text: string): Invite {
     x.port < 1024 ||
     x.port > 65535
   )
-    throw new Error("Die uitnodiging bevat ongeldige besonderhede.");
+    throw new Error(t("The invitation contains invalid details."));
   return x;
 }
 function urlBase64(bytes: Buffer) {
@@ -128,7 +129,9 @@ export function seal(
   const plaintext = utf8ToBytes(JSON.stringify(message));
   if (plaintext.length > 200_000)
     throw new Error(
-      "Die gedeelde pakket is te groot. Verminder die gedeelde templates of geskiedenis.",
+      t(
+        "The shared packet is too large. Reduce the shared templates or history.",
+      ),
     );
   const nonce = random(24);
   const aad = utf8ToBytes(`pulse-v1:${me.publicKey}:${to}`);
@@ -153,7 +156,7 @@ export function open(me: Identity, p: Packet, now = Date.now()): Message {
     p.box.length > MAX_PACKET ||
     !/^(?:[a-f0-9]{2})+$/.test(p.box)
   )
-    throw new Error("Ongeldige geënkripteerde boodskap.");
+    throw new Error(t("Invalid encrypted message."));
   const bytes = xchacha20poly1305(
     keyFor(me, p.from),
     hexToBytes(p.nonce),
@@ -175,6 +178,6 @@ export function open(me: Identity, p: Packet, now = Date.now()): Message {
       "snapshot",
     ].includes(m.type)
   )
-    throw new Error("Ongeldige boodskapinhoud.");
+    throw new Error(t("Invalid message content."));
   return m;
 }

@@ -20,6 +20,7 @@ import {
   challengeState,
 } from "../core/model";
 import { uid } from "../services/db";
+import { t, tn, locale } from "../i18n";
 export function ChallengeBuilder({
   data,
   onSend,
@@ -42,10 +43,10 @@ export function ChallengeBuilder({
   async function send() {
     try {
       if (!friends.some((f) => f.id === friendId))
-        throw new Error("Kies ’n geverifieerde vriend.");
+        throw new Error(t("Choose a verified friend."));
       const n = Number(target.replace(",", "."));
       if (!title.trim() || !Number.isFinite(n) || n <= 0 || n > 100000)
-        throw new Error("Voeg ’n naam en geldige teiken by.");
+        throw new Error(t("Add a name and a valid target."));
       setBusy(true);
       const now = Date.now();
       await onSend({
@@ -68,8 +69,8 @@ export function ChallengeBuilder({
     }
   }
   return (
-    <Sheet title="Nuwe challenge" onClose={onClose}>
-      <Label>KIES JOU MAAT</Label>
+    <Sheet title={t("New challenge")} onClose={onClose}>
+      <Label>{t("PICK YOUR PARTNER")}</Label>
       <Row>
         {friends.map((f) => (
           <Chip
@@ -83,16 +84,16 @@ export function ChallengeBuilder({
       {!friends.length && (
         <Empty
           icon="people-outline"
-          title="Koppel eers ’n vriend"
-          body="Gebruik Setup om ’n uitnodigingskode te deel en sleutels te verifieer."
+          title={t("Connect a friend first")}
+          body={t("Use Setup to share an invitation code and verify keys.")}
         />
       )}
       <Row style={{ marginVertical: 16 }}>
         {(
           [
-            ["run", "Draf"],
-            ["exercise", "Oefening"],
-            ["workout", "Workout"],
+            ["run", t("Run")],
+            ["exercise", t("Exercise")],
+            ["workout", t("Workout")],
           ] as const
         ).map(([k, l]) => (
           <Chip
@@ -104,15 +105,15 @@ export function ChallengeBuilder({
         ))}
       </Row>
       <Field
-        label="Wat is die uitdaging?"
+        label={t("What is the challenge?")}
         value={title}
         maxLength={100}
         placeholder={
           kind === "run"
-            ? "5 km voor sononder"
+            ? t("5 km before sunset")
             : kind === "exercise"
-              ? "50 push-ups"
-              : "Voltooi Partner engine"
+              ? t("50 push-ups")
+              : t("Finish Partner engine")
         }
         onChangeText={setTitle}
       />
@@ -132,30 +133,38 @@ export function ChallengeBuilder({
         </Row>
       )}
       <Field
-        label={`Teiken (${kind === "run" ? "km" : kind === "exercise" ? "reps" : "sessies"})`}
+        label={t("Target ({unit})", {
+          unit:
+            kind === "run"
+              ? "km"
+              : kind === "exercise"
+                ? t("reps")
+                : t("sessions"),
+        })}
         keyboardType="decimal-pad"
         value={target}
         onChangeText={setTarget}
       />
-      <Label>VOLTOOI BINNE</Label>
+      <Label>{t("COMPLETE WITHIN")}</Label>
       <Row>
         {DURATIONS.map((d) => (
           <Chip
             key={d.hours}
-            label={d.label}
+            label={t(d.label)}
             selected={hours === d.hours}
             onPress={() => setHours(d.hours)}
           />
         ))}
       </Row>
       <T muted size={12} style={{ marginVertical: 16 }}>
-        Die sperdatum begin wanneer jy stuur. As jou vriend nie bereikbaar is
-        nie, bly die uitdaging geënkripteer in jou uitboks.
+        {t(
+          "The deadline starts when you send. If your friend is not reachable, the challenge stays encrypted in your outbox.",
+        )}
       </T>
       {!!error && <T style={{ color: "#e97777", marginBottom: 16 }}>{error}</T>}
       <Button
         primary
-        label={busy ? "Stoor…" : "Stuur challenge"}
+        label={busy ? t("Saving…") : t("Send challenge")}
         disabled={busy || !friends.length}
         icon="paper-plane-outline"
         onPress={() => void send()}
@@ -179,54 +188,70 @@ export default function Challenges({
     const t = setInterval(() => tick((n) => n + 1), 30000);
     return () => clearInterval(t);
   }, []);
-  const [filter, setFilter] = useState("Alles");
+  const [filter, setFilter] = useState<"all" | "active" | "history">("all");
   const names: Record<string, string> = {
-    invited: "Uitnodiging",
-    accepted: "Aktief",
-    completed: "Voltooi",
-    declined: "Geweier",
-    expired: "Verstryk",
+    invited: t("Invitation"),
+    accepted: t("Active"),
+    completed: t("Completed"),
+    declined: t("Declined"),
+    expired: t("Expired"),
   };
   const list = data.challenges.filter(
     (c) =>
-      filter === "Alles" ||
-      (filter === "Aktief" &&
+      filter === "all" ||
+      (filter === "active" &&
         ["invited", "accepted"].includes(challengeState(c))) ||
-      (filter === "Geskiedenis" &&
+      (filter === "history" &&
         ["completed", "declined", "expired"].includes(challengeState(c))),
   );
   return (
     <FlatList
       data={list}
       keyExtractor={(c) => c.id}
+      showsVerticalScrollIndicator={false}
       contentContainerStyle={{ padding: 22, paddingBottom: 30 }}
       ListHeaderComponent={
         <>
-          <Label>JOU KRING / ’N BIETJIE KOMPETISIE</Label>
+          <Label>{t("YOUR CIRCLE / A LITTLE COMPETITION")}</Label>
           <Heading
             title={
               data.settings.theme === "couples"
-                ? "Saam is ’n\nsuperkrag."
-                : "Wie’s in?"
+                ? t("Together is a\nsuperpower.")
+                : t("Who’s in?")
             }
-            subtitle="Daag jou mense uit. Hou mekaar aan die beweeg."
+            subtitle={t("Challenge your people. Keep each other moving.")}
           />
           <Row style={{ justifyContent: "space-between", marginBottom: 18 }}>
-            <Button primary label="Nuwe challenge" icon="add" onPress={onNew} />
-            <Button label="Sinkroniseer" small icon="sync" onPress={onSync} />
+            <Button
+              primary
+              label={t("New challenge")}
+              icon="add"
+              onPress={onNew}
+            />
+            <Button label={t("Sync")} small icon="sync" onPress={onSync} />
           </Row>
           {data.pendingCount > 0 && (
             <Card>
               <T muted size={12}>
-                {data.pendingCount} boodskap(pe) wag vir ’n direkte verbinding.
+                {tn(
+                  data.pendingCount,
+                  "{n} message waiting for a direct connection.",
+                  "{n} messages waiting for a direct connection.",
+                )}
               </T>
             </Card>
           )}
           <Row style={{ marginBottom: 14 }}>
-            {["Alles", "Aktief", "Geskiedenis"].map((f) => (
+            {(
+              [
+                ["all", t("All")],
+                ["active", t("Active")],
+                ["history", t("History")],
+              ] as const
+            ).map(([f, label]) => (
               <Chip
                 key={f}
-                label={f}
+                label={label}
                 selected={filter === f}
                 onPress={() => setFilter(f)}
               />
@@ -237,8 +262,8 @@ export default function Challenges({
       ListEmptyComponent={
         <Empty
           icon="flash-outline"
-          title="’n Nuwe uitdaging begin by jou."
-          body="Koppel ’n vriend in Setup en stuur julle eerste challenge."
+          title={t("A new challenge starts with you.")}
+          body={t("Connect a friend in Setup and send your first challenge.")}
         />
       }
       renderItem={({ item: c }) => {
@@ -249,8 +274,8 @@ export default function Challenges({
           <Card>
             <Row style={{ justifyContent: "space-between" }}>
               <Label>
-                {c.direction === "incoming" ? "VAN" : "VIR"}{" "}
-                {friend?.name.toUpperCase() || "VRIEND"}
+                {c.direction === "incoming" ? t("FROM") : t("FOR")}{" "}
+                {friend?.name.toUpperCase() || t("FRIEND")}
               </Label>
               <Pill>{names[state]}</Pill>
             </Row>
@@ -263,26 +288,30 @@ export default function Challenges({
                 {c.kind === "run"
                   ? "km"
                   : c.kind === "exercise"
-                    ? "reps"
-                    : "sessies"}
+                    ? t("reps")
+                    : t("sessions")}
               </T>
             </T>
             <T muted size={12} style={{ marginTop: 7 }}>
-              Sperdatum: {new Date(c.deadline).toLocaleString("af-ZA")}
+              {t("Deadline: {date}", {
+                date: new Date(c.deadline).toLocaleString(locale()),
+              })}
             </T>
             {state !== "expired" &&
               state !== "completed" &&
               state !== "declined" && (
                 <T muted size={12}>
-                  {Math.floor(remaining / 3600000)}u{" "}
-                  {Math.floor((remaining % 3600000) / 60000)}m oor
+                  {t("{h}h {m}m left", {
+                    h: Math.floor(remaining / 3600000),
+                    m: Math.floor((remaining % 3600000) / 60000),
+                  })}
                 </T>
               )}
             {c.direction === "outgoing" && (
               <T muted size={11} style={{ marginTop: 8 }}>
                 {c.delivered
-                  ? "Aflewering bevestig deur vriend se toestel"
-                  : "Wag in plaaslike uitboks"}
+                  ? t("Delivery confirmed by your friend’s device")
+                  : t("Waiting in local outbox")}
               </T>
             )}
             {c.direction === "incoming" && (
@@ -291,11 +320,11 @@ export default function Challenges({
                   <>
                     <Button
                       primary
-                      label="Aanvaar"
+                      label={t("Accept")}
                       onPress={() => onRespond(c, "accepted")}
                     />
                     <Button
-                      label="Weier"
+                      label={t("Decline")}
                       onPress={() => onRespond(c, "declined")}
                     />
                   </>
@@ -303,7 +332,7 @@ export default function Challenges({
                 {state === "accepted" && (
                   <Button
                     primary
-                    label="Ek het dit voltooi"
+                    label={t("I completed it")}
                     icon="checkmark"
                     onPress={() => onRespond(c, "completed")}
                   />
@@ -312,7 +341,7 @@ export default function Challenges({
             )}
             {state === "completed" && (
               <T muted size={11} style={{ marginTop: 8 }}>
-                Self-gerapporteerde voltooiing.
+                {t("Self-reported completion.")}
               </T>
             )}
           </Card>

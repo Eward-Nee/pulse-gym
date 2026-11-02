@@ -337,7 +337,7 @@ test("Android update install: valid hash opens installer, corrupted hash stops i
   };
   await assert.rejects(
     app.installRelease({ ...release, newer: false }),
-    /Geen nuwer/,
+    /No newer/,
   );
   assert.equal(env.installs.length, 0);
   await app.installRelease(release);
@@ -389,9 +389,9 @@ test("GitHub release discovery: newer APK, required digest, wrong origin, missin
   data.assets[0].digest = null;
   assert.equal((await app.checkRelease()).apk, undefined);
   data.html_url = "https://untrusted.invalid/release";
-  await assert.rejects(app.checkRelease(), /release-adres/);
+  await assert.rejects(app.checkRelease(), /release address/);
   env.fetch = async () => ({ ok: false, status: 404 });
-  await assert.rejects(app.checkRelease(), /Geen publieke release/);
+  await assert.rejects(app.checkRelease(), /No public release/);
 
   sqlite.close();
 });
@@ -405,5 +405,119 @@ test("queued settings patches preserve name when theme is changed immediately af
   const s = await app.snapshot();
   assert.equal(s.settings.name, "QA name");
   assert.equal(s.settings.theme, "couples");
+  sqlite.close();
+});
+const workout = (name: string) => ({
+  id: randomUUID(),
+  name,
+  position: 0,
+  notes: "",
+  exercises: [
+    {
+      id: randomUUID(),
+      name: "Squat",
+      kind: "strength",
+      sets: 3,
+      reps: 5,
+      kg: 20,
+      seconds: 0,
+      meters: 0,
+      rest: 60,
+      notes: "",
+    },
+  ],
+});
+test("active workouts can be saved, resumed and cancelled without touching history", async () => {
+  const { app, sqlite } = await device("192.168.1.10");
+  const w = (await app.snapshot()).workouts[0];
+  const session = { workout: w, startedAt: 1000, completedSets: { a: 1 } };
+  await app.saveActiveSession(session);
+  assert.deepEqual((await app.load()).active, session);
+  await app.storeSession({
+    id: randomUUID(),
+    name: "Earlier",
+    finishedAt: 5,
+    seconds: 60,
+    exercises: w.exercises,
+    completedSets: {},
+  });
+  await app.clearActiveSession();
+  const after = await app.load();
+  assert.equal(after.active, null);
+  assert.equal(after.data.sessions.length, 1);
+  assert.equal(after.data.workouts.length, 2);
+  await app.clearActiveSession(); // cancelling twice is harmless
+  sqlite.close();
+});
+test("workout positions stay unique after deleting and adding", async () => {
+  const { app, sqlite } = await device("192.168.1.10");
+  const [a, b, c] = [workout("A"), workout("B"), workout("C")];
+  for (const w of [a, b, c]) await app.putWorkout(w);
+  let ids = (await app.snapshot()).workouts.map((w: any) => w.id);
+  assert.deepEqual(ids.slice(2), [a.id, b.id, c.id]);
+  await app.deleteWorkout(ids[0]);
+  await app.putWorkout(workout("D"));
+  const s = await app.snapshot();
+  assert.deepEqual(
+    s.workouts.map((w: any) => w.position),
+    [0, 1, 2, 3, 4],
+  );
+  assert.equal(s.workouts.at(-1).name, "D");
+  // editing an existing workout never moves it
+  await app.putWorkout({ ...a, name: "A2", position: 99 });
+  const again = (await app.snapshot()).workouts;
+  assert.equal(again.find((w: any) => w.id === a.id).position, 1);
+  sqlite.close();
+});
+test("reads queue behind transactions: a rolled-back write is never visible", async () => {
+  const { app, env, sqlite } = await device("192.168.1.10");
+  const ghost = workout("Ghost");
+  const slow = app
+    .serial(async () => {
+      await env.db.withTransactionAsync(async () => {
+        await app.putWorkout(ghost);
+        await new Promise((r) => setTimeout(r, 20));
+        throw new Error("boom");
+      });
+    })
+    .catch(() => {});
+  const seen = app.load(); // requested while the transaction is open
+  await slow;
+  const { data } = await seen;
+  assert.ok(!data.workouts.some((w: any) => w.id === ghost.id));
+  assert.equal(data.workouts.length, 2);
+  sqlite.close();
+});
+test("startup is atomic and repeatable, and tolerates unreadable stored JSON", async () => {
+  const { app, env, sqlite } = await device("192.168.1.10");
+  await Promise.all([app.initDB(), app.initDB()]);
+  assert.equal((await app.snapshot()).workouts.length, 2);
+  assert.equal(
+    (await env.db.getFirstAsync("SELECT count(*) n FROM profile")).n,
+    1,
+  );
+  assert.equal(
+    (await env.db.getFirstAsync("PRAGMA user_version")).user_version,
+    1,
+  );
+  await env.db.runAsync("UPDATE profile SET settings='{broken'");
+  await env.db.runAsync(
+    "UPDATE workouts SET exercises='nope' WHERE position=0",
+  );
+  const s = await app.snapshot();
+  assert.equal(s.settings.name, "Athlete");
+  assert.equal(s.settings.language, "en");
+  assert.deepEqual(s.workouts[0].exercises, []);
+  sqlite.close();
+});
+test("language preference defaults to English, persists, and rejects unknown values", async () => {
+  const { app, sqlite } = await device("192.168.1.10");
+  assert.equal((await app.snapshot()).settings.language, "en");
+  await app.updateSettings({ language: "af" });
+  assert.equal((await app.snapshot()).settings.language, "af");
+  await app.updateSettings({ theme: "couples" });
+  assert.equal((await app.snapshot()).settings.language, "af");
+  await app.updateSettings({ language: "xx" });
+  assert.equal((await app.snapshot()).settings.language, "en");
   sqlite.close();
 });

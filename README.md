@@ -34,6 +34,10 @@ The supplied localhost server sets COOP/COEP headers needed by Expo SQLite's WAS
 
 Transfer `builds/pulse-gym-0.1.1-arm64.apk` to an ARM64 Android phone and open it. Allow installation from that file app when Android asks. This is a standalone build: Metro and Expo Go are not needed. Keep the signing key backed up privately before distributing future updates. This build has not yet been run on a physical phone; use the two-phone checklist below before relying on peer delivery.
 
+## What's new in 0.1.2
+
+English (default) and Afrikaans, cancel active workouts, a non-overlapping workout builder, page transitions, wallpaper previews, hidden scrollbars, a Show/Hide ID toggle, and a set of local-storage and sync fixes. See [v0.1.2 test report](docs/TESTING-0.1.2.md).
+
 ## Implemented
 
 - Three tabs: Home, Challenge, Setup. Pulse Social is the default; Couples is optional.
@@ -66,7 +70,7 @@ Repository: https://github.com/Eward-Nee/pulse-gym
 
 Android releases: https://github.com/Eward-Nee/pulse-gym/releases
 
-In Setup → App-opdaterings, select **Soek opdatering**. The app always checks `Eward-Nee/pulse-gym`; no repository entry or configuration is required. Legacy saved repository values are ignored. Version 0.1.1 has no automatic update polling or update notifications. New code commits alone do not trigger an app update: publish a signed APK on a newer stable version tag. The Git repository root is the application directory.
+In Setup → APP UPDATES, select **Check for update**. The app always checks `Eward-Nee/pulse-gym`; no repository entry or configuration is required. Legacy saved repository values are ignored. Version 0.1.2 has no automatic update polling or update notifications. New code commits alone do not trigger an app update: publish a signed APK on a newer stable version tag. The Git repository root is the application directory.
 
 The manual GitHub Actions workflow builds a signed standalone APK and uploads it as a workflow artifact. Configure these repository secrets first:
 

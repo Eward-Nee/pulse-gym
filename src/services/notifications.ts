@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import * as Notifications from "expo-notifications";
 import { AppState, Platform } from "react-native";
 import { useEffect, useRef, useState } from "react";
@@ -70,7 +71,7 @@ export async function remind(id: string, date: number, title: string) {
   await Notifications.cancelScheduledNotificationAsync(id);
   await Notifications.scheduleNotificationAsync({
     identifier: id,
-    content: { title: "Challenge-sperdatum", body: title },
+    content: { title: t("Challenge deadline"), body: title },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DATE,
       date: new Date(date),

@@ -208,6 +208,6 @@ test("oversized outgoing packets are rejected before they can clog the persisten
         },
         randomBytes,
       ),
-    /te groot/,
+    /too large/,
   );
 });

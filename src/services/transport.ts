@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import { NativeModules } from "react-native";
 import { MAX_PACKET, PORT } from "../core/protocol";
 export const canConnect = () => !!NativeModules.TcpSockets;
@@ -7,7 +8,7 @@ export async function listen(
 ): Promise<() => void> {
   if (!canConnect())
     throw new Error(
-      "Direkte koppeling benodig die native Android/iOS-bou, nie Expo Go nie.",
+      t("Direct connection needs the native Android/iOS build, not Expo Go."),
     );
   const Tcp = (await import("react-native-tcp-socket")).default;
   let active = 0;
@@ -57,7 +58,7 @@ export async function request(
   line: string,
 ): Promise<string> {
   if (!canConnect())
-    throw new Error("Gebruik die native bou vir direkte verbindings.");
+    throw new Error(t("Use the native build for direct connections."));
   const Tcp = (await import("react-native-tcp-socket")).default;
   return new Promise((resolve, reject) => {
     let response = "",
@@ -76,7 +77,7 @@ export async function request(
       () =>
         finish(
           new Error(
-            "Vriend nie bereikbaar nie. Probeer op dieselfde Wi-Fi met albei apps oop.",
+            t("Friend not reachable. Try the same Wi-Fi with both apps open."),
           ),
         ),
       8000,
@@ -84,13 +85,14 @@ export async function request(
     socket.on("data", (chunk) => {
       response += chunk.toString();
       if (response.length > MAX_PACKET + 1000)
-        return finish(new Error("Ongeldige antwoord."));
+        return finish(new Error(t("Invalid reply.")));
       const end = response.indexOf("\n");
       if (end >= 0) finish(undefined, response.slice(0, end));
     });
     socket.on("error", (e) => finish(e));
     socket.on("close", () => {
-      if (!done) finish(new Error("Verbinding gesluit sonder bevestiging."));
+      if (!done)
+        finish(new Error(t("Connection closed without confirmation.")));
     });
   });
 }

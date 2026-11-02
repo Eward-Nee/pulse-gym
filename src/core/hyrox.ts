@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import {
   daysUntil,
   parseDate,
@@ -10,30 +11,30 @@ export const HYROX_SOURCE =
   "https://maintain.hyrox.com/rulebooks/HYROX_RulebookDoubles_EN.pdf";
 export const STATIONS = [
   ["SkiErg", "1 000 m", ""],
-  ["Sled push", "50 m", "152 kg inkl. sled"],
-  ["Sled pull", "50 m", "103 kg inkl. sled"],
-  ["Burpee broad jumps", "80 m", "Liggaamsgewig"],
+  ["Sled push", "50 m", "152 kg incl. sled"],
+  ["Sled pull", "50 m", "103 kg incl. sled"],
+  ["Burpee broad jumps", "80 m", "Bodyweight"],
   ["Row", "1 000 m", ""],
   ["Farmers carry", "200 m", "2 × 24 kg"],
   ["Sandbag lunges", "100 m", "20 kg"],
-  ["Wall balls", "100 reps", "6 kg · teiken 2.7 m / 3.0 m"],
+  ["Wall balls", "100 reps", "6 kg · target 2.7 m / 3.0 m"],
 ];
 const EASY = [30, 35, 40, 30, 40, 45, 45, 35, 50, 40, 30, 20];
 const REPS = [4, 5, 4, 3, 4, 5, 4, 3, 5, 3, 3, 3],
   METERS = [400, 400, 600, 400, 800, 800, 1000, 600, 1000, 1000, 600, 200];
 export const PHASES = [
-  "Basis",
-  "Basis",
-  "Basis",
-  "Herstel",
-  "Bou",
-  "Bou",
-  "Spesifiek",
-  "Herstel",
-  "Spesifiek",
-  "Repetisie",
+  "Base",
+  "Base",
+  "Base",
+  "Recovery",
+  "Build",
+  "Build",
+  "Specific",
+  "Recovery",
+  "Specific",
+  "Rehearsal",
   "Taper",
-  "Wedrenweek",
+  "Race week",
 ];
 export function planPosition(date: string, now = new Date()) {
   const days = daysUntil(date, now);
@@ -57,7 +58,7 @@ export function generateWeek(
   id: () => string,
 ): Workout[] {
   if (!Number.isInteger(week) || week < 1 || week > 12)
-    throw new Error("Ongeldige week.");
+    throw new Error(t("Invalid week."));
   const b = s.level === "foundation",
     taper = week >= 11,
     deload = week === 4 || week === 8,
@@ -97,14 +98,15 @@ export function generateWeek(
     notes,
   });
   const warm = () =>
-    ex("Opwarming · stap/draf + mobiliteit", "time", 1, 0, 0, 600, 0, 0);
-  const cool = () => ex("Afkoel · maklik beweeg", "time", 1, 0, 0, 300, 0, 0);
+    ex(t("Warm-up · walk/jog + mobility"), "time", 1, 0, 0, 600, 0, 0);
+  const cool = () =>
+    ex(t("Cool-down · easy movement"), "time", 1, 0, 0, 300, 0, 0);
   const strength = make(
-    "Ma · Krag & tegniek",
+    t("Mon · Strength & technique"),
     [
       warm(),
       ex(
-        "Squat · kies eie oefengewig",
+        t("Squat · choose your own weight"),
         "strength",
         sets,
         8,
@@ -112,11 +114,13 @@ export function generateWeek(
         0,
         0,
         120,
-        "2–3 reps in reserwe. 0 kg is ’n onbevestigde oefengewig; stel dit voor jy begin.",
+        t(
+          "2–3 reps in reserve. 0 kg is an unconfirmed training weight; set it before you start.",
+        ),
       ),
       ex("Dumbbell row", "strength", sets, 10),
       ex(
-        "Farmers carry · kies eie gewig",
+        t("Farmers carry · choose your own weight"),
         "run",
         sets,
         0,
@@ -124,10 +128,10 @@ export function generateWeek(
         0,
         b ? 20 : 30,
         90,
-        "Gewig word in notas aangeteken; skaal vir elke maat.",
+        t("Record the weight in the notes; scale for each partner."),
       ),
       ex(
-        "Wall-ball tegniek · kies eie gewig",
+        t("Wall-ball technique · choose your own weight"),
         "strength",
         sets,
         10,
@@ -138,14 +142,16 @@ export function generateWeek(
       ),
       cool(),
     ],
-    "RPE 5–6/10. Tegniek voor gewig; wedrenladings is nie beginnersladings nie.",
+    t(
+      "RPE 5–6/10. Technique before weight; race loads are not beginner loads.",
+    ),
   );
   const aerobic = make(
-    "Di · Maklike draf",
+    t("Tue · Easy run"),
     [
       warm(),
       ex(
-        b ? "Stap/draf · 2 min / 1 min" : "Geselstempo · RPE 3–4",
+        b ? t("Walk/jog · 2 min / 1 min") : t("Conversation pace · RPE 3–4"),
         "time",
         1,
         0,
@@ -156,14 +162,16 @@ export function generateWeek(
       ),
       cool(),
     ],
-    "Albei maats oefen hul eie basis. Loop teen ’n tempo waar ’n gesprek moontlik bly.",
+    t(
+      "Both partners train their own base. Move at a pace where you can still hold a conversation.",
+    ),
   );
   const speed = make(
-    "Do · Drafintervalle",
+    t("Thu · Run intervals"),
     [
       warm(),
       ex(
-        b ? "Maklike draf / stap" : "Beheerde draf · RPE 6–7",
+        b ? t("Easy jog / walk") : t("Controlled run · RPE 6–7"),
         b ? "time" : "run",
         b ? 4 : REPS[week - 1],
         0,
@@ -174,10 +182,10 @@ export function generateWeek(
       ),
       cool(),
     ],
-    "Rus deur stadig te stap/draf. Geen maksimum spoed nie.",
+    t("Rest by walking/jogging slowly. No maximum speed."),
   );
   const accessory = make(
-    "Vr · Kragonderhoud",
+    t("Fri · Strength maintenance"),
     [
       warm(),
       ex("Romanian deadlift", "strength", sets, taper ? 5 : 8),
@@ -191,11 +199,13 @@ export function generateWeek(
         0,
         0,
         90,
-        "Per been. Hou goeie beheer.",
+        t("Per leg. Stay in control."),
       ),
       cool(),
     ],
-    "Hou 2–3 reps in reserwe. Slaan oor as herstel swak is of die wedren binne 72 uur is.",
+    t(
+      "Keep 2–3 reps in reserve. Skip if recovery is poor or the race is within 72 hours.",
+    ),
   );
   const stationNames =
     week < 5
@@ -215,7 +225,7 @@ export function generateWeek(
   for (let r = 0; r < rounds; r++) {
     engine.push(
       ex(
-        `Rondte ${r + 1} · hardloop saam`,
+        t("Round {n} · run together", { n: r + 1 }),
         "run",
         1,
         0,
@@ -240,7 +250,7 @@ export function generateWeek(
                 : 0;
     engine.push(
       ex(
-        n + (b ? " · ligte tegniek" : ""),
+        n + (b ? t(" · light technique") : ""),
         n === "Wall balls" ? "strength" : "run",
         1,
         n === "Wall balls" ? 10 : 0,
@@ -248,15 +258,19 @@ export function generateWeek(
         0,
         meters,
         120,
-        "Verdeel stasiewerk; 1 maat werk op ’n slag. Kies eie veilige oefenlading.",
+        t(
+          "Split the station work; 1 partner works at a time. Choose your own safe training load.",
+        ),
       ),
     );
   }
   engine.push(cool());
   const partner = make(
-    "Sa · Partner engine",
+    t("Sat · Partner engine"),
     engine,
-    "Albei hardloop elke segment saam. Deel slegs die stasiewerk. RPE 6–7; beginners 4–5. Sê “wissel” voor tegniek verval.",
+    t(
+      "Both run every segment together. Only share the station work. RPE 6–7; beginners 4–5. Say “switch” before technique breaks down.",
+    ),
   );
   return (
     s.trainingDays === 3
@@ -270,7 +284,9 @@ export function generateWeek(
     notes:
       w.notes +
       (taper
-        ? " Taper: verminder volume. Beplan hierdie sessies vroeg in die week; geen swaar sessie naby wedrendag."
+        ? t(
+            " Taper: reduce volume. Plan these sessions early in the week; no heavy session close to race day.",
+          )
         : ""),
   }));
 }

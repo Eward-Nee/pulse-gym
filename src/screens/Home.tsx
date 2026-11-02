@@ -13,6 +13,7 @@ import {
   T,
   useTheme,
 } from "../components/ui";
+import { t, tn } from "../i18n";
 import {
   type Snapshot,
   type Workout,
@@ -32,6 +33,7 @@ export default function Home({
   onHistory,
   hasActive,
   onResume,
+  onCancelActive,
 }: {
   data: Snapshot;
   onEdit: (w: Workout) => void;
@@ -44,6 +46,7 @@ export default function Home({
   onHistory: () => void;
   hasActive: boolean;
   onResume: () => void;
+  onCancelActive: () => void;
 }) {
   const { c } = useTheme();
   const partner = data.friends.find((f) => f.id === data.partnerId);
@@ -59,13 +62,14 @@ export default function Home({
       keyExtractor={(w) => w.id}
       contentContainerStyle={{ padding: 22, paddingBottom: 30 }}
       initialNumToRender={8}
+      showsVerticalScrollIndicator={false}
       ListHeaderComponent={
         <>
           <Row style={{ justifyContent: "space-between", marginBottom: 20 }}>
             <View>
-              <Label>JOU KRING / JOU MOMENTUM</Label>
+              <Label>{t("YOUR CIRCLE / YOUR MOMENTUM")}</Label>
               <T size={25} bold>
-                Hey, {data.settings.name.split(" ")[0]}.
+                {t("Hey, {name}.", { name: data.settings.name.split(" ")[0] })}
               </T>
             </View>
             <View
@@ -91,12 +95,12 @@ export default function Home({
                   <T bold>
                     {partner
                       ? `${data.settings.name} + ${partner.name}`
-                      : "Jou Couples-ruimte"}
+                      : t("Your Couples space")}
                   </T>
                   <T muted size={12}>
                     {partner
-                      ? "Een span. Julle eie tempo."
-                      : "Kies een partner vanuit Setup se vriendelys."}
+                      ? t("One team. Your own pace.")
+                      : t("Pick one partner from the Setup friend list.")}
                   </T>
                 </View>
               </Row>
@@ -111,13 +115,21 @@ export default function Home({
           />
           {hasActive && (
             <Card>
-              <Label>JOU SESSIE WAG</Label>
-              <Button
-                label="Hervat aktiewe workout"
-                primary
-                icon="play"
-                onPress={onResume}
-              />
+              <Label>{t("YOUR SESSION IS WAITING")}</Label>
+              <Row>
+                <Button
+                  label={t("Resume active workout")}
+                  primary
+                  icon="play"
+                  onPress={onResume}
+                />
+                <Button
+                  label={t("Cancel workout")}
+                  danger
+                  icon="close-circle-outline"
+                  onPress={onCancelActive}
+                />
+              </Row>
             </Card>
           )}
           <Row style={{ justifyContent: "space-between", marginBottom: 22 }}>
@@ -126,7 +138,7 @@ export default function Home({
                 {weekSessions.length}
               </T>
               <T muted size={11}>
-                sessies / 7 dae
+                {t("sessions / 7 days")}
               </T>
             </View>
             <View>
@@ -136,7 +148,7 @@ export default function Home({
                 )}
               </T>
               <T muted size={11}>
-                minute geoefen
+                {t("minutes trained")}
               </T>
             </View>
             <View>
@@ -144,16 +156,16 @@ export default function Home({
                 {data.friends.filter((f) => f.status === "accepted").length}
               </T>
               <T muted size={11}>
-                vriende
+                {t("friends")}
               </T>
             </View>
-            <Button label="Geskiedenis" small onPress={onHistory} />
+            <Button label={t("History")} small onPress={onHistory} />
           </Row>
           {invites.length > 0 && (
             <Card>
               <Row style={{ justifyContent: "space-between" }}>
                 <View style={{ flex: 1 }}>
-                  <Label>NUWE CHALLENGE</Label>
+                  <Label>{t("NEW CHALLENGE")}</Label>
                   <T bold>{invites[0].title}</T>
                   <T muted size={12}>
                     {
@@ -162,7 +174,7 @@ export default function Home({
                     }
                   </T>
                 </View>
-                <Button label="Bekyk" small onPress={onChallenges} />
+                <Button label={t("View")} small onPress={onChallenges} />
               </Row>
             </Card>
           )}
@@ -170,16 +182,19 @@ export default function Home({
             <Card>
               <Row style={{ justifyContent: "space-between" }}>
                 <View style={{ flex: 1 }}>
-                  <Label>HYROX / MIXED DOUBLES</Label>
+                  <Label>{t("HYROX / MIXED DOUBLES")}</Label>
                   <T size={18} bold>
                     {data.settings.raceDate
-                      ? "One team. Race ready."
-                      : "Kies julle wedrendatum."}
+                      ? t("One team. Race ready.")
+                      : t("Pick your race date.")}
                   </T>
                   <T muted size={12} style={{ marginTop: 5 }}>
                     {data.settings.raceDate
-                      ? `${Math.max(0, daysUntil(data.settings.raceDate))} dae oor · ${data.settings.trainingDays} oefendae / week`
-                      : "’n Plan wat terugwerk vanaf die wegspring."}
+                      ? t("{n} days left · {d} training days / week", {
+                          n: Math.max(0, daysUntil(data.settings.raceDate)),
+                          d: data.settings.trainingDays,
+                        })
+                      : t("A plan that works back from the start line.")}
                   </T>
                 </View>
                 <Ionicons name="arrow-forward" color={c.accent} size={23} />
@@ -194,9 +209,9 @@ export default function Home({
             }}
           >
             <T size={20} bold>
-              Jou workouts
+              {t("Your workouts")}
             </T>
-            <Button label="Nuut" small primary icon="add" onPress={onNew} />
+            <Button label={t("New")} small primary icon="add" onPress={onNew} />
           </Row>
         </>
       }
@@ -211,8 +226,12 @@ export default function Home({
                 {w.name}
               </T>
               <T muted size={12} style={{ marginTop: 4 }}>
-                {w.exercises.length} oefeninge ·{" "}
-                {w.exercises.reduce((s, e) => s + e.sets, 0)} stelle
+                {tn(w.exercises.length, "{n} exercise", "{n} exercises")} ·{" "}
+                {tn(
+                  w.exercises.reduce((s, e) => s + e.sets, 0),
+                  "{n} set",
+                  "{n} sets",
+                )}
               </T>
               {w.exercises.slice(0, 2).map((e) => (
                 <T muted key={e.id} size={11} style={{ marginTop: 4 }}>
@@ -223,13 +242,13 @@ export default function Home({
           </Row>
           <Row style={{ marginTop: 16 }}>
             <Button
-              label="Begin"
+              label={t("Start")}
               primary
               small
               icon="play"
               onPress={() => onStart(w)}
             />
-            <Button label="Wysig" small onPress={() => onEdit(w)} />
+            <Button label={t("Edit")} small onPress={() => onEdit(w)} />
             <Button
               label="↑"
               small
@@ -242,20 +261,25 @@ export default function Home({
               disabled={index === data.workouts.length - 1}
               onPress={() => onMove(w, 1)}
             />
-            <Button label="Skrap" small danger onPress={() => onDelete(w)} />
+            <Button
+              label={t("Delete")}
+              small
+              danger
+              onPress={() => onDelete(w)}
+            />
           </Row>
         </Card>
       )}
       ListEmptyComponent={
         <Empty
           icon="barbell-outline"
-          title="Jou eerste workout wag."
-          body="Voeg oefeninge, stelle, reps, gewigte, tyd of afstand by."
+          title={t("Your first workout awaits.")}
+          body={t("Add exercises, sets, reps, weights, time or distance.")}
         />
       }
       ListFooterComponent={
         <T muted size={11} style={{ textAlign: "center", marginTop: 12 }}>
-          Op jou toestel gestoor. Gereed wanneer jy is.
+          {t("Stored on your device. Ready when you are.")}
         </T>
       }
     />

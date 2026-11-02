@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 import { Linking, Platform } from "react-native";
 import Constants from "expo-constants";
 import appConfig from "../../app.json";
@@ -35,8 +36,8 @@ export async function checkRelease(): Promise<Release> {
     if (!response.ok)
       throw new Error(
         response.status === 404
-          ? "Geen publieke release gevind nie."
-          : "GitHub is tans nie beskikbaar nie.",
+          ? t("No public release found.")
+          : t("GitHub is currently unavailable."),
       );
     const data = await response.json();
     const expected = `https://github.com/${repo}/releases/`;
@@ -44,7 +45,7 @@ export async function checkRelease(): Promise<Release> {
       typeof data.html_url !== "string" ||
       !data.html_url.startsWith(expected)
     )
-      throw new Error("Ongeldige release-adres.");
+      throw new Error(t("Invalid release address."));
     const asset = data.assets?.find(
       (a: any) =>
         /\.apk$/i.test(a.name) &&
@@ -76,8 +77,7 @@ export async function checkRelease(): Promise<Release> {
   }
 }
 export async function installRelease(release: Release) {
-  if (!release.newer)
-    throw new Error("Geen nuwer weergawe om te installeer nie.");
+  if (!release.newer) throw new Error(t("No newer version to install."));
   if (Platform.OS !== "android" || !release.apk) {
     await Linking.openURL(release.url);
     return;
@@ -107,7 +107,9 @@ export async function installRelease(release: Release) {
   }
   if ("sha256:" + bytesToHex(hash.digest()) !== release.apk.digest) {
     await FS.deleteAsync(target, { idempotent: true });
-    throw new Error("Die aflaai se kontrolesom pas nie. Installasie gestop.");
+    throw new Error(
+      t("The download checksum does not match. Installation stopped."),
+    );
   }
   const uri = await FS.getContentUriAsync(target);
   await Intent.startActivityAsync("android.intent.action.VIEW", {

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Alert, Platform } from "react-native";
+import { View } from "react-native";
 import {
   Button,
   Card,
@@ -18,30 +18,46 @@ import {
   validateWorkout,
 } from "../core/model";
 import { uid } from "../services/db";
+import { t } from "../i18n";
 export function NumberField({
   label,
   value,
   onChange,
-  min = 0,
 }: {
   label: string;
   value: number;
   onChange: (n: number) => void;
-  min?: number;
 }) {
   const [text, set] = useState(String(value));
   return (
-    <View style={{ width: "47%" }}>
-      <Field
-        label={label}
-        value={text}
-        keyboardType="decimal-pad"
-        onChangeText={(v) => {
-          set(v);
-          const n = Number(v.replace(",", "."));
-          onChange(Number.isFinite(n) ? n : -1);
-        }}
-      />
+    <Field
+      label={label}
+      value={text}
+      keyboardType="decimal-pad"
+      onChangeText={(v) => {
+        set(v);
+        const n = Number(v.replace(",", "."));
+        onChange(Number.isFinite(n) ? n : -1);
+      }}
+    />
+  );
+}
+/** Two equal columns per row. No wrapping or percentage widths, so fields can never overlap. */
+function Grid({ children }: { children: React.ReactNode }) {
+  const cells = React.Children.toArray(children),
+    rows: React.ReactNode[][] = [];
+  for (let i = 0; i < cells.length; i += 2) rows.push(cells.slice(i, i + 2));
+  return (
+    <View style={{ marginTop: 10 }}>
+      {rows.map((row, i) => (
+        <View key={i} style={{ flexDirection: "row", gap: 10 }}>
+          {[0, 1].map((j) => (
+            <View key={j} style={{ flex: 1, minWidth: 0 }}>
+              {row[j]}
+            </View>
+          ))}
+        </View>
+      ))}
     </View>
   );
 }
@@ -65,15 +81,15 @@ export default function WorkoutEditor({
       ),
     });
   return (
-    <Sheet title="Workout bouer" onClose={onClose}>
+    <Sheet title={t("Workout builder")} onClose={onClose}>
       <Field
-        label="Workout-naam"
+        label={t("Workout name")}
         value={w.name}
         maxLength={80}
         onChangeText={(name) => set({ ...w, name })}
       />
       <Field
-        label="Notas / oefendoel"
+        label={t("Notes / training goal")}
         value={w.notes}
         multiline
         onChangeText={(notes) => set({ ...w, notes })}
@@ -81,7 +97,9 @@ export default function WorkoutEditor({
       {w.exercises.map((e, i) => (
         <Card key={e.id}>
           <Row style={{ justifyContent: "space-between", marginBottom: 12 }}>
-            <Label>OEFENING {String(i + 1).padStart(2, "0")}</Label>
+            <Label>
+              {t("EXERCISE {n}", { n: String(i + 1).padStart(2, "0") })}
+            </Label>
             <Row>
               <Button
                 small
@@ -101,7 +119,7 @@ export default function WorkoutEditor({
               />
               <Button
                 small
-                label="Verwyder"
+                label={t("Remove")}
                 danger
                 onPress={() =>
                   set({
@@ -113,7 +131,7 @@ export default function WorkoutEditor({
             </Row>
           </Row>
           <Field
-            label="Oefening"
+            label={t("Exercise")}
             value={e.name}
             maxLength={80}
             onChangeText={(name) => edit(i, { name })}
@@ -122,7 +140,7 @@ export default function WorkoutEditor({
             {Object.entries(EXERCISE_LABELS).map(([kind, label]) => (
               <Chip
                 key={kind}
-                label={label}
+                label={t(label)}
                 selected={e.kind === kind}
                 onPress={() =>
                   edit(i, {
@@ -133,55 +151,55 @@ export default function WorkoutEditor({
               />
             ))}
           </Row>
-          <Row style={{ marginTop: 10 }}>
+          <Grid>
             <NumberField
-              label="Stelle"
+              label={t("Sets")}
               value={e.sets}
               onChange={(sets) => edit(i, { sets })}
             />
             {["strength", "bodyweight"].includes(e.kind) && (
               <NumberField
-                label="Reps per stel"
+                label={t("Reps per set")}
                 value={e.reps}
                 onChange={(reps) => edit(i, { reps })}
               />
             )}
             {e.kind === "strength" && (
               <NumberField
-                label="Gewig (kg)"
+                label={t("Weight (kg)")}
                 value={e.kg}
                 onChange={(kg) => edit(i, { kg })}
               />
             )}
             {["run", "time"].includes(e.kind) && (
-              <>
-                <NumberField
-                  label="Tyd (sekondes)"
-                  value={e.seconds}
-                  onChange={(seconds) => edit(i, { seconds })}
-                />
-                <NumberField
-                  label="Afstand (meter)"
-                  value={e.meters}
-                  onChange={(meters) => edit(i, { meters })}
-                />
-              </>
+              <NumberField
+                label={t("Time (seconds)")}
+                value={e.seconds}
+                onChange={(seconds) => edit(i, { seconds })}
+              />
+            )}
+            {["run", "time"].includes(e.kind) && (
+              <NumberField
+                label={t("Distance (meters)")}
+                value={e.meters}
+                onChange={(meters) => edit(i, { meters })}
+              />
             )}
             <NumberField
-              label="Rus (sekondes)"
+              label={t("Rest (seconds)")}
               value={e.rest}
               onChange={(rest) => edit(i, { rest })}
             />
-          </Row>
+          </Grid>
           <Field
-            label="Oefening-notas"
+            label={t("Exercise notes")}
             value={e.notes}
             onChangeText={(notes) => edit(i, { notes })}
           />
         </Card>
       ))}
       <Button
-        label="Voeg oefening by"
+        label={t("Add exercise")}
         icon="add"
         disabled={w.exercises.length >= 60}
         onPress={() =>
@@ -211,7 +229,7 @@ export default function WorkoutEditor({
       <View style={{ marginTop: 16 }}>
         <Button
           primary
-          label={saving ? "Stoor…" : "Stoor workout"}
+          label={saving ? t("Saving…") : t("Save workout")}
           disabled={saving}
           icon="checkmark"
           onPress={() => {

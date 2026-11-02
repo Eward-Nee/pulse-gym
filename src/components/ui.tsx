@@ -9,7 +9,8 @@ import {
   AccessibilityInfo,
   ActivityIndicator,
   Animated,
-  ImageBackground,
+  Easing,
+  Image,
   Modal,
   Platform,
   Pressable,
@@ -25,6 +26,7 @@ import {
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
+import { t } from "../i18n";
 export const palettes = {
   pulse: {
     bg: "#111217",
@@ -225,7 +227,7 @@ export function Button({
 export function Field({ label, ...props }: TextInputProps & { label: string }) {
   const { c } = useTheme();
   return (
-    <View style={{ marginBottom: 14, flexGrow: 1 }}>
+    <View style={{ marginBottom: 14 }}>
       <T size={12} muted style={{ marginBottom: 6 }}>
         {label}
       </T>
@@ -379,10 +381,11 @@ export function Sheet({
                   <T size={23} bold>
                     {title}
                   </T>
-                  <Button label="Sluit" small onPress={onClose} />
+                  <Button label={t("Close")} small onPress={onClose} />
                 </Row>
               </View>
               <ScrollView
+                showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
                 contentContainerStyle={{
                   padding: 22,
@@ -401,78 +404,91 @@ export function Sheet({
     </Modal>
   );
 }
+export type Wallpaper = "iron" | "steel" | "plain";
+/** Photo wallpaper with a tint, or a solid themed gradient. Fills its parent; put content on top. */
+export function Wallpaper({
+  wallpaper,
+  couples,
+  children,
+  style,
+}: React.PropsWithChildren<{
+  wallpaper: Wallpaper;
+  couples: boolean;
+  style?: ViewStyle;
+}>) {
+  const tint: [string, string] =
+    wallpaper === "iron"
+      ? ["#b4552a55", "#111217e6"]
+      : wallpaper === "steel"
+        ? ["#2b6fa655", "#0b1825ee"]
+        : couples
+          ? ["#9c4b60", "#4a2230"]
+          : ["#2b2d38", "#15161c"];
+  return (
+    <View style={[{ overflow: "hidden", backgroundColor: "#111217" }, style]}>
+      {wallpaper !== "plain" && (
+        <Image
+          source={require("../../assets/gym-wallpaper.jpg")}
+          resizeMode="cover"
+          style={StyleSheet.absoluteFill}
+        />
+      )}
+      <LinearGradient colors={tint} style={StyleSheet.absoluteFill} />
+      {children}
+    </View>
+  );
+}
 export function Hero({
   couples,
   wallpaper,
   onPress,
 }: {
   couples: boolean;
-  wallpaper: "iron" | "steel" | "plain";
+  wallpaper: Wallpaper;
   onPress: () => void;
 }) {
-  const { c } = useTheme();
   return (
-    <View
-      style={{
-        borderRadius: 26,
-        overflow: "hidden",
-        marginBottom: 22,
-        backgroundColor: c.surface,
-      }}
+    <Wallpaper
+      wallpaper={wallpaper}
+      couples={couples}
+      style={{ borderRadius: 26, marginBottom: 22 }}
     >
-      <ImageBackground
-        source={
-          wallpaper === "plain"
-            ? undefined
-            : require("../../assets/gym-wallpaper.jpg")
-        }
-        style={{ minHeight: 255 }}
-        imageStyle={{ opacity: 0.85, width: "100%", height: "100%" }}
-      >
-        <LinearGradient
-          colors={
-            wallpaper === "steel"
-              ? ["#20476b66", "#0b1825f2"]
-              : ["#11121700", "#111217bb"]
-          }
-          style={{ flex: 1, padding: 23, justifyContent: "flex-end" }}
+      <View style={{ minHeight: 255, padding: 23, justifyContent: "flex-end" }}>
+        <Text
+          style={{
+            color: "#f3bbb3",
+            fontSize: 10,
+            letterSpacing: 2,
+            fontWeight: "700",
+            marginBottom: 8,
+          }}
         >
-          <Text
-            style={{
-              color: "#f3bbb3",
-              fontSize: 10,
-              letterSpacing: 2,
-              fontWeight: "700",
-              marginBottom: 8,
-            }}
-          >
-            {couples ? "TOGETHER / EVERY REP" : "YOUR PEOPLE. YOUR PACE."}
-          </Text>
-          <Text
-            style={{
-              color: "#fff",
-              fontSize: 36,
-              fontWeight: "800",
-              lineHeight: 39,
-              letterSpacing: -1,
-            }}
-          >
-            {couples ? "Sterker.\nSaam." : "Build your\nown momentum."}
-          </Text>
-          <Text style={{ color: "#d2d1d9", fontSize: 13, marginVertical: 13 }}>
-            {couples
-              ? "Een span. Twee mense. Julle tempo."
-              : "Jou workouts. Jou kring. Jou volgende stap."}
-          </Text>
-          <Button
-            label="Begin jou volgende sessie"
-            primary
-            icon="play"
-            onPress={onPress}
-          />
-        </LinearGradient>
-      </ImageBackground>
-    </View>
+          {couples ? t("TOGETHER / EVERY REP") : t("YOUR PEOPLE. YOUR PACE.")}
+        </Text>
+        <Text
+          style={{
+            color: "#fff",
+            fontSize: 36,
+            fontWeight: "800",
+            lineHeight: 39,
+            letterSpacing: -1,
+          }}
+        >
+          {couples ? t("Stronger.\nTogether.") : t("Build your\nown momentum.")}
+        </Text>
+        <Text style={{ color: "#d2d1d9", fontSize: 13, marginVertical: 13 }}>
+          {couples
+            ? t("One team. Two people. Your pace.")
+            : t("Your workouts. Your circle. Your next step.")}
+        </Text>
+        <Button
+          label={t("Start your next session")}
+          primary
+          icon="play"
+          onPress={onPress}
+        />
+      </View>
+    </Wallpaper>
   );
 }
 export function useReducedMotion() {
@@ -489,5 +505,42 @@ export function Busy() {
     <View style={{ padding: 40 }}>
       <ActivityIndicator color="#ff978b" />
     </View>
+  );
+}
+/** Slides and fades its content in on mount; give it a new `key` per screen. direction: 1 from the right, -1 from the left. */
+export function ScreenTransition({
+  direction,
+  children,
+}: React.PropsWithChildren<{ direction: number }>) {
+  const { reduced } = useTheme(),
+    progress = useRef(new Animated.Value(reduced ? 1 : 0)).current;
+  useEffect(() => {
+    if (reduced) return;
+    const run = Animated.timing(progress, {
+      toValue: 1,
+      duration: 260,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    });
+    run.start();
+    return () => run.stop();
+  }, [progress, reduced]);
+  return (
+    <Animated.View
+      style={{
+        flex: 1,
+        opacity: progress,
+        transform: [
+          {
+            translateX: progress.interpolate({
+              inputRange: [0, 1],
+              outputRange: [direction * 36, 0],
+            }),
+          },
+        ],
+      }}
+    >
+      {children}
+    </Animated.View>
   );
 }
