@@ -60,7 +60,6 @@ export type Settings = {
   raceDate: string;
   level: "foundation" | "regular";
   trainingDays: 3 | 4 | 5;
-  repo: string;
 };
 export type Snapshot = {
   workouts: Workout[];
@@ -79,7 +78,6 @@ export const DEFAULT_SETTINGS: Settings = {
   raceDate: "",
   level: "foundation",
   trainingDays: 3,
-  repo: "",
 };
 export const DURATIONS = [
   { label: "1 uur", hours: 1 },

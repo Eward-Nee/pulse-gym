@@ -33,5 +33,7 @@ subprocess.run(['./gradlew','assembleRelease','--no-daemon','--max-workers=1','-
 output = root/'builds'
 output.mkdir(exist_ok=True)
 from shutil import copy2
-copy2(root/'android/app/build/outputs/apk/release/app-release.apk',output/'pulse-gym-0.1.0-arm64.apk')
-print('APK: '+str(output/'pulse-gym-0.1.0-arm64.apk'),flush=True)
+version = json.loads((root/'app.json').read_text())['expo']['version']
+apk = output / f'pulse-gym-{version}-arm64.apk'
+copy2(root/'android/app/build/outputs/apk/release/app-release.apk',apk)
+print('APK: '+str(apk),flush=True)

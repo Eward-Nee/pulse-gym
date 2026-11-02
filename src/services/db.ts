@@ -152,10 +152,17 @@ export async function orderWorkouts(ids: string[]) {
       await d.runAsync("UPDATE workouts SET position=? WHERE id=?", i, ids[i]);
   });
 }
-export async function updateSettings(s: Settings) {
-  await (
-    await database()
-  ).runAsync(
+export async function updateSettings(changes: Partial<Settings>) {
+  const d = await database();
+  const current = await d.getFirstAsync<{ settings: string }>(
+    "SELECT settings FROM profile WHERE singleton=1",
+  );
+  const s = {
+    ...DEFAULT_SETTINGS,
+    ...JSON.parse(current?.settings || "{}"),
+    ...changes,
+  };
+  await d.runAsync(
     "UPDATE profile SET settings=? WHERE singleton=1",
     JSON.stringify(s),
   );

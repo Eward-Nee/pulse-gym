@@ -18,7 +18,7 @@ npx expo prebuild --platform android
 npm run android:build
 ```
 
-You need Android Studio/SDK and the JDK supported by the generated Gradle project. The source was generated with Expo SDK 58 / React Native 0.88.1. The local Android SDK is installed under `.local-build/sdk`. A signed standalone ARM64 APK was built successfully at `builds/pulse-gym-0.1.0-arm64.apk` (32.6 MiB; Android 7/API 24 or later). Its APK v2 signature and bundled JavaScript were verified. No physical-device test has been completed. iOS native compilation requires a Mac and has not been tested.
+You need Android Studio/SDK and the JDK supported by the generated Gradle project. The source was generated with Expo SDK 58 / React Native 0.88.1. The local Android SDK is installed under `.local-build/sdk`. A signed standalone ARM64 APK was built successfully at `builds/pulse-gym-0.1.1-arm64.apk` (32.6 MiB; Android 7/API 24 or later). Its APK v2 signature and bundled JavaScript were verified. No physical-device test has been completed. iOS native compilation requires a Mac and has not been tested.
 
 A functional browser version of the same React Native UI is available for local workouts, themes, history and HYROX planning:
 
@@ -32,7 +32,7 @@ The supplied localhost server sets COOP/COEP headers needed by Expo SQLite's WAS
 
 ## Install the Android test build
 
-Transfer `builds/pulse-gym-0.1.0-arm64.apk` to an ARM64 Android phone and open it. Allow installation from that file app when Android asks. This is a standalone build: Metro and Expo Go are not needed. Keep the signing key backed up privately before distributing future updates. This build has not yet been run on a physical phone; use the two-phone checklist below before relying on peer delivery.
+Transfer `builds/pulse-gym-0.1.1-arm64.apk` to an ARM64 Android phone and open it. Allow installation from that file app when Android asks. This is a standalone build: Metro and Expo Go are not needed. Keep the signing key backed up privately before distributing future updates. This build has not yet been run on a physical phone; use the two-phone checklist below before relying on peer delivery.
 
 ## Implemented
 
@@ -60,28 +60,28 @@ Direct reachability across arbitrary mobile networks is **not guaranteed**. Ther
 
 ## APK builds and GitHub
 
-For a local signed ARM64 APK after installing the Android SDK and `mise` Temurin 17, run `python3 scripts/build-local-android.py`. It uses a persistent private signing key in `.local-build/` and writes to `builds/pulse-gym-0.1.0-arm64.apk`. Back up `.local-build/pulse-release.jks` and `.local-build/signing.json` privately; both are excluded from Git. The script does not change the system default Java version.
+For a local signed ARM64 APK after installing the Android SDK and `mise` Temurin 17, run `python3 scripts/build-local-android.py`. It uses a persistent private signing key in `.local-build/` and writes to `builds/pulse-gym-0.1.1-arm64.apk`. Back up `.local-build/pulse-release.jks` and `.local-build/signing.json` privately; both are excluded from Git. The script does not change the system default Java version.
 
 Repository: https://github.com/Eward-Nee/pulse-gym
 
 Android releases: https://github.com/Eward-Nee/pulse-gym/releases
 
-In the installed app, enter `Eward-Nee/pulse-gym` under Setup → GitHub updates, then run the manual update check. Version 0.1.0 has no automatic update polling or update notifications. New code commits alone do not trigger an app update: publish a signed APK on a newer stable version tag. The Git repository root is the application directory.
+In Setup → App-opdaterings, select **Soek opdatering**. The app always checks `Eward-Nee/pulse-gym`; no repository entry or configuration is required. Legacy saved repository values are ignored. Version 0.1.1 has no automatic update polling or update notifications. New code commits alone do not trigger an app update: publish a signed APK on a newer stable version tag. The Git repository root is the application directory.
 
 The manual GitHub Actions workflow builds a signed standalone APK and uploads it as a workflow artifact. Configure these repository secrets first:
 
 - `ANDROID_KEYSTORE_BASE64`: your persistent release keystore encoded as base64.
 - `ANDROID_STORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`.
 
-Keep the key backed up privately; future updates must use the same signing identity and a higher `android.versionCode` / app version. The signing script fails rather than quietly using the template's debug key. No signing secrets belong in source control. The workflow does not automatically publish a public release. Attach the signed APK to a stable GitHub Release such as `v0.1.0`; enter `owner/repository` in Setup. GitHub's asset SHA-256 digest must be present for in-app Android installation. The OS still verifies package signatures. Distribution through app stores has separate requirements, including installation permissions.
+Keep the key backed up privately; future updates must use the same signing identity and a higher `android.versionCode` / app version. The signing script fails rather than quietly using the template's debug key. No signing secrets belong in source control. The workflow does not automatically publish a public release. Attach the signed APK to a stable GitHub Release such as `v0.1.1`. The update repository is fixed in the app. GitHub's asset SHA-256 digest must be present for in-app Android installation. The OS still verifies package signatures. Distribution through app stores has separate requirements, including installation permissions.
 
 ## Validation completed
 
 ESLint was added for source checks before publication. Existing compiler-readiness findings, unused imports and one verified Expo barrel-export diagnostic remain visible as warnings; this is not a warning-free lint baseline. Generated bundles and the downloaded Android SDK are excluded.
 
-- TypeScript compilation and nine core tests: authenticated encryption/tampering/wrong-recipient rejection, invitation validation, database partner constraints, replay-receipt uniqueness, expiry boundaries, date validation, all 72 HYROX parameter combinations, workout input validation and oversized packet rejection.
+- TypeScript compilation and 17 tests (nine core tests plus eight service/functionality tests; see [v0.1.1 test report](docs/TESTING-0.1.1.md)). Core coverage includes: authenticated encryption/tampering/wrong-recipient rejection, invitation validation, database partner constraints, replay-receipt uniqueness, expiry boundaries, date validation, all 72 HYROX parameter combinations, workout input validation and oversized packet rejection.
 - Browser smoke test: initial boot, Couples theme, profile change, workout create/save, persistence after reload, race date, week import, friend-required challenge guard, set completion, immediate/reload session resume, partial-session history, and no horizontal overflow at 430px. No runtime exceptions in that run.
-- Android Hermes/JS export, native project generation and signed ARM64 release build completed (370 Gradle tasks; release lint passed). `apksigner verify` passed; the package is `app.pulsegym.local`, version 0.1.0/code 1, minimum API 24 and target API 36. The TCP native module compiled. **Physical-device behavior and two-phone networking remain untested.**
+- Android Hermes/JS export, native project generation and signed ARM64 release build completed (370 Gradle tasks; release lint passed). `apksigner verify` passed; the package is `app.pulsegym.local`, version 0.1.1/code 2, minimum API 24 and target API 36. The TCP native module compiled. **Physical-device behavior and two-phone networking remain untested.**
 - Dependency audit reports 11 moderate transitive Expo tooling findings (`glob` / `minimatch`), no high/critical findings at inspection. A forced downgrade of Expo was not applied. Expo Doctor's remaining known warning is the TCP library's New Architecture status.
 
 ### Required two-phone release checks

@@ -1,5 +1,6 @@
 import { Linking, Platform } from "react-native";
 import Constants from "expo-constants";
+import appConfig from "../../app.json";
 export type Release = {
   version: string;
   url: string;
@@ -7,8 +8,7 @@ export type Release = {
   apk?: { url: string; name: string; digest: string; size: number };
   newer: boolean;
 };
-export const validRepo = (repo: string) =>
-  /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo);
+export const UPDATE_REPOSITORY = "Eward-Nee/pulse-gym";
 export function newerVersion(next: string, current: string) {
   const parse = (v: string) =>
     /^v?(\d+)\.(\d+)\.(\d+)$/.exec(v)?.slice(1).map(Number);
@@ -20,9 +20,8 @@ export function newerVersion(next: string, current: string) {
   }
   return false;
 }
-export async function checkRelease(repo: string): Promise<Release> {
-  if (!validRepo(repo))
-    throw new Error("Gebruik eienaar/repository, bv. jou-naam/pulse-gym.");
+export async function checkRelease(): Promise<Release> {
+  const repo = UPDATE_REPOSITORY;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
   try {
@@ -61,7 +60,7 @@ export async function checkRelease(repo: string): Promise<Release> {
       notes: String(data.body || "").slice(0, 3000),
       newer: newerVersion(
         data.tag_name,
-        Constants.expoConfig?.version || "0.1.0",
+        Constants.expoConfig?.version || appConfig.expo.version,
       ),
       apk: asset
         ? {
@@ -77,6 +76,8 @@ export async function checkRelease(repo: string): Promise<Release> {
   }
 }
 export async function installRelease(release: Release) {
+  if (!release.newer)
+    throw new Error("Geen nuwer weergawe om te installeer nie.");
   if (Platform.OS !== "android" || !release.apk) {
     await Linking.openURL(release.url);
     return;

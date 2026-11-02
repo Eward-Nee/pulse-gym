@@ -1,5 +1,14 @@
 import React, { useState } from "react";
-import { Image, Platform, ScrollView, Share, Switch, View } from "react-native";
+import appConfig from "../../app.json";
+import {
+  Image,
+  Linking,
+  Platform,
+  ScrollView,
+  Share,
+  Switch,
+  View,
+} from "react-native";
 import * as Clipboard from "expo-clipboard";
 import {
   Button,
@@ -31,7 +40,7 @@ import {
   ownInvite,
   shareSnapshot,
 } from "../services/peers";
-import { enableNotifications } from "../services/notifications";
+import { useNotificationPermission } from "../services/notifications";
 import {
   checkRelease,
   installRelease,
@@ -54,8 +63,8 @@ export default function Setup({
   networkStatus: string;
 }) {
   const { c } = useTheme();
+  const notifications = useNotificationPermission();
   const [name, setName] = useState(data.settings.name),
-    [repo, setRepo] = useState(data.settings.repo),
     [code, setCode] = useState(""),
     [invite, setInvite] = useState<Invite | null>(null),
     [myCode, setMyCode] = useState(""),
@@ -70,7 +79,7 @@ export default function Setup({
       (f) => f.status === "accepted" && f.verified,
     );
   const patch = (partial: Partial<Settings>) =>
-    act(() => updateSettings({ ...data.settings, ...partial }));
+    act(() => updateSettings(partial));
   return (
     <ScrollView
       contentContainerStyle={{ padding: 22, paddingBottom: 40 }}
@@ -329,30 +338,50 @@ export default function Setup({
           en ’n herinnering by die sperdatum. ’n Geslote app word nie sonder ’n
           push-diens wakker gemaak nie.
         </T>
-        <Button
-          label="Aktiveer kennisgewings"
-          icon="notifications-outline"
-          disabled={Platform.OS === "web"}
-          onPress={() =>
-            act(async () =>
-              setNote(
-                (await enableNotifications())
-                  ? "Kennisgewings geaktiveer."
-                  : "Toestemming is nie gegee nie.",
-              ),
-            )
-          }
-        />
+        {notifications.status === "enabled" ? (
+          <Pill>Kennisgewings geaktiveer</Pill>
+        ) : notifications.status === "unsupported" ? (
+          <T muted>Kennisgewings is beskikbaar in die Android-app.</T>
+        ) : (
+          <>
+            {notifications.status === "error" && (
+              <T muted>Kon nie toestemming nagaan nie. Probeer weer.</T>
+            )}
+            {notifications.status === "blocked" && (
+              <T muted>
+                Laat kennisgewings in jou foon se app-instellings toe.
+              </T>
+            )}
+            <Button
+              label={
+                notifications.status === "checking"
+                  ? "Kontroleer toestemming…"
+                  : notifications.status === "blocked"
+                    ? "Open kennisgewing-instellings"
+                    : notifications.status === "error"
+                      ? "Probeer weer"
+                      : "Aktiveer kennisgewings"
+              }
+              icon="notifications-outline"
+              disabled={notifications.status === "checking"}
+              onPress={() =>
+                act(async () => {
+                  if (notifications.status === "blocked")
+                    await Linking.openSettings();
+                  else if (notifications.status === "error")
+                    await notifications.refresh();
+                  else await notifications.enable();
+                })
+              }
+            />
+          </>
+        )}
       </Card>
       <Card>
-        <Label>APP-OPDATERINGS / GITHUB</Label>
-        <Field
-          label="Publieke repository (eienaar/naam)"
-          value={repo}
-          placeholder="jou-naam/pulse-gym"
-          autoCapitalize="none"
-          onChangeText={setRepo}
-        />
+        <Label>APP-OPDATERINGS</Label>
+        <T muted size={12} style={{ marginBottom: 12 }}>
+          Soek die jongste Pulse Gym-weergawe. Geen opstelling nodig nie.
+        </T>
         <Button
           label={working ? "Kontroleer…" : "Soek opdatering"}
           disabled={working}
@@ -361,8 +390,7 @@ export default function Setup({
             setWorking(true);
             act(async () => {
               try {
-                const result = await checkRelease(repo.trim());
-                await updateSettings({ ...data.settings, repo: repo.trim() });
+                const result = await checkRelease();
                 setRelease(result);
               } finally {
                 setWorking(false);
@@ -381,26 +409,28 @@ export default function Setup({
             <T muted size={12} style={{ marginVertical: 10 }}>
               {release.notes}
             </T>
-            <Button
-              label={
-                working
-                  ? "Laai af & verifieer…"
-                  : release.apk && Platform.OS === "android"
-                    ? "Laai APK af & open installeerder"
-                    : "Open GitHub-release"
-              }
-              disabled={working}
-              onPress={() => {
-                setWorking(true);
-                act(async () => {
-                  try {
-                    await installRelease(release);
-                  } finally {
-                    setWorking(false);
-                  }
-                });
-              }}
-            />
+            {release.newer && (
+              <Button
+                label={
+                  working
+                    ? "Laai af & verifieer…"
+                    : release.apk && Platform.OS === "android"
+                      ? "Laai APK af & open installeerder"
+                      : "Open GitHub-release"
+                }
+                disabled={working}
+                onPress={() => {
+                  setWorking(true);
+                  act(async () => {
+                    try {
+                      await installRelease(release);
+                    } finally {
+                      setWorking(false);
+                    }
+                  });
+                }}
+              />
+            )}
           </View>
         )}
         <T muted size={11} style={{ marginTop: 12 }}>
@@ -410,7 +440,7 @@ export default function Setup({
       </Card>
       {!!note && <T style={{ color: c.accent }}>{note}</T>}
       <T size={11} muted style={{ textAlign: "center" }}>
-        Pulse Gym 0.1.0 · SQLite op jou toestel
+        Pulse Gym {appConfig.expo.version} · SQLite op jou toestel
       </T>
       {invite && (
         <Sheet title="Verifieer jou vriend" onClose={() => setInvite(null)}>

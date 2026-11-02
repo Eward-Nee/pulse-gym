@@ -61,20 +61,36 @@ export function validHost(host: string) {
   );
 }
 export function parseInvite(text: string): Invite {
-  if (text.length > 3000 || !text.startsWith("PULSE1:"))
+  if (
+    typeof text !== "string" ||
+    text.length > 3000 ||
+    !text.startsWith("PULSE1:")
+  )
     throw new Error("Plak die volledige PULSE1-uitnodigingskode.");
   let x: Invite;
   try {
-    x = JSON.parse(Buffer.from(text.slice(7), "base64url").toString("utf8"));
+    const encoded = text.slice(7);
+    if (!/^[A-Za-z0-9_-]+$/.test(encoded) || encoded.length % 4 === 1)
+      throw new Error("Invalid base64url");
+    const bytes = Buffer.from(
+      encoded.replace(/-/g, "+").replace(/_/g, "/"),
+      "base64",
+    );
+    if (urlBase64(bytes) !== encoded)
+      throw new Error("Non-canonical base64url");
+    x = JSON.parse(bytes.toString("utf8"));
   } catch {
     throw new Error("Die uitnodigingskode is ongeldig.");
   }
   if (
+    !x ||
+    typeof x !== "object" ||
     x.v !== 1 ||
     !/^[a-f0-9]{64}$/.test(x.publicKey) ||
     x.id !== peerId(x.publicKey) ||
     typeof x.name !== "string" ||
     x.name.length > 80 ||
+    typeof x.host !== "string" ||
     !validHost(x.host) ||
     !Number.isInteger(x.port) ||
     x.port < 1024 ||
@@ -83,8 +99,16 @@ export function parseInvite(text: string): Invite {
     throw new Error("Die uitnodiging bevat ongeldige besonderhede.");
   return x;
 }
+function urlBase64(bytes: Buffer) {
+  // React Native's buffer polyfill supports base64, but not Node's base64url.
+  return bytes
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
 export function makeInvite(x: Invite) {
-  return "PULSE1:" + Buffer.from(JSON.stringify(x)).toString("base64url");
+  return "PULSE1:" + urlBase64(Buffer.from(JSON.stringify(x), "utf8"));
 }
 function keyFor(me: Identity, peer: string) {
   return hkdf(
