@@ -39,3 +39,14 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Local preview exports and browser artifacts
+web-dist/
+scripts/*render.png
+*.keystore
+
+android-dist/
+
+.local-build/
+
+builds/

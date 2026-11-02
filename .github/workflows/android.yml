@@ -1,0 +1,46 @@
+name: Android signed APK
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+      - run: npm ci
+      - run: npm run check
+      - run: npx expo prebuild --platform android --no-install
+      - name: Configure persistent release key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          PULSE_KEYSTORE_PATH: ${{ runner.temp }}/pulse-release.jks
+          PULSE_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          PULSE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          PULSE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$KEYSTORE_BASE64"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$PULSE_KEYSTORE_PATH"
+          node scripts/configure-signing.cjs
+      - name: Assemble signed standalone APK
+        working-directory: android
+        env:
+          PULSE_KEYSTORE_PATH: ${{ runner.temp }}/pulse-release.jks
+          PULSE_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          PULSE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          PULSE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease --no-daemon --max-workers=2
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pulse-gym-signed-apk
+          path: android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error

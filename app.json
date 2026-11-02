@@ -1,25 +1,40 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
-    "version": "1.0.0",
+    "name": "Pulse Gym",
+    "slug": "pulse-gym",
+    "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "bundleIdentifier": "app.pulsegym.local",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocalNetworkUsageDescription": "Koppel direk met jou vriende vir geënkripteerde challenges en gedeelde workouts."
+      }
     },
     "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
-      },
-      "predictiveBackGestureEnabled": false
+      "package": "app.pulsegym.local",
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.ACCESS_WIFI_STATE",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.REQUEST_INSTALL_PACKAGES"
+      ],
+      "allowBackup": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
-    }
+      "bundler": "metro",
+      "favicon": "./assets/icon.png"
+    },
+    "plugins": [
+      "expo-sqlite",
+      "expo-secure-store",
+      "expo-notifications",
+      "expo-font"
+    ],
+    "scheme": "pulsegym"
   }
 }
