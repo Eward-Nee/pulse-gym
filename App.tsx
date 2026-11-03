@@ -22,6 +22,7 @@ import {
   ScreenTransition,
   Sheet,
   T,
+  TabBar,
   Theme,
   palettes,
   useReducedMotion,
@@ -445,62 +446,19 @@ function AppContent() {
                 />
               )}
             </ScreenTransition>
-            <View
-              style={{
-                paddingHorizontal: 22,
-                paddingTop: 8,
-                paddingBottom: Platform.OS === "web" ? 16 : 5,
-              }}
-            >
-              <View
-                style={{
-                  backgroundColor: c.surface,
-                  borderRadius: 28,
-                  padding: 5,
-                  flexDirection: "row",
-                  borderWidth: 1,
-                  borderColor: c.line,
-                }}
-              >
-                {(
-                  [
-                    ["Home", "home-outline"],
-                    ["Challenge", "flash-outline"],
-                    ["Setup", "options-outline"],
-                  ] as const
-                ).map(([name, icon]) => (
-                  <Pressable
-                    accessibilityRole="tab"
-                    accessibilityState={{ selected: tab === name }}
-                    key={name}
-                    onPress={() => go(name)}
-                    style={{
-                      flex: 1,
-                      borderRadius: 24,
-                      backgroundColor: tab === name ? c.accent : "transparent",
-                      alignItems: "center",
-                      paddingVertical: 11,
-                      gap: 4,
-                    }}
-                  >
-                    <Ionicons
-                      name={icon}
-                      size={20}
-                      color={tab === name ? c.on : c.muted}
-                    />
-                    <Text
-                      style={{
-                        fontSize: 11,
-                        fontWeight: "700",
-                        color: tab === name ? c.on : c.muted,
-                      }}
-                    >
-                      {t(name)}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
+            <TabBar
+              active={tab}
+              onChange={go}
+              tabs={[
+                { key: "Home", icon: "home-outline", label: t("Home") },
+                {
+                  key: "Challenge",
+                  icon: "flash-outline",
+                  label: t("Challenge"),
+                },
+                { key: "Setup", icon: "options-outline", label: t("Setup") },
+              ]}
+            />
           </View>
           {editor && (
             <WorkoutEditor

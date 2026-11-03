@@ -27,6 +27,7 @@ import {
   T,
   Wallpaper,
   useTheme,
+  NAV_CLEARANCE,
 } from "../components/ui";
 import { LANGUAGES, t, tn, locale } from "../i18n";
 import { type Snapshot, type Settings, type Workout } from "../core/model";
@@ -106,7 +107,7 @@ export default function Setup({
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ padding: 22, paddingBottom: 40 }}
+      contentContainerStyle={{ padding: 22, paddingBottom: NAV_CLEARANCE }}
       keyboardShouldPersistTaps="handled"
     >
       <Label>{t("YOUR SPACE / YOUR RULES")}</Label>
@@ -215,47 +216,63 @@ export default function Setup({
         )}
       </Card>
       <Label>{t("WALLPAPER")}</Label>
-      <View style={{ flexDirection: "row", gap: 10, marginBottom: 18 }}>
+      <View style={{ gap: 10, marginBottom: 18 }}>
         {(
           [
-            ["iron", t("Iron / warm")],
-            ["steel", t("Steel / cool")],
-            ["plain", t("Calm / solid")],
+            [
+              ["iron", t("Iron / warm")],
+              ["steel", t("Steel / cool")],
+            ],
+            [
+              ["rose", t("Together / rose")],
+              ["plain", t("Calm / solid")],
+            ],
           ] as const
-        ).map(([wallpaper, label]) => {
-          const selected = data.settings.wallpaper === wallpaper;
-          return (
-            <Pressable
-              key={wallpaper}
-              accessibilityRole="button"
-              accessibilityLabel={label}
-              accessibilityState={{ selected }}
-              onPress={() => patch({ wallpaper })}
-              style={{ flex: 1 }}
-            >
-              <Wallpaper
-                wallpaper={wallpaper}
-                couples={data.settings.theme === "couples"}
-                style={{
-                  height: 86,
-                  borderRadius: 16,
-                  borderWidth: 2,
-                  borderColor: selected ? c.accent : c.line,
-                  justifyContent: "flex-end",
-                  padding: 8,
-                }}
-              >
-                <Text
-                  numberOfLines={2}
-                  style={{ color: "#fff", fontSize: 11, fontWeight: "700" }}
+        ).map((row, r) => (
+          <View key={r} style={{ flexDirection: "row", gap: 10 }}>
+            {row.map(([wallpaper, label]) => {
+              const selected = data.settings.wallpaper === wallpaper;
+              return (
+                <Pressable
+                  key={wallpaper}
+                  accessibilityRole="button"
+                  accessibilityLabel={label}
+                  accessibilityState={{ selected }}
+                  onPress={() => patch({ wallpaper })}
+                  style={{ flex: 1 }}
                 >
-                  {selected ? "✓ " : ""}
-                  {label}
-                </Text>
-              </Wallpaper>
-            </Pressable>
-          );
-        })}
+                  <Wallpaper
+                    wallpaper={wallpaper}
+                    couples={data.settings.theme === "couples"}
+                    scrim={0.55}
+                    style={{
+                      height: 110,
+                      borderRadius: 16,
+                      borderWidth: 2,
+                      borderColor: selected ? c.accent : c.line,
+                      justifyContent: "flex-end",
+                      padding: 10,
+                    }}
+                  >
+                    <Text
+                      numberOfLines={2}
+                      style={{
+                        color: "#fff",
+                        fontSize: 12,
+                        fontWeight: "700",
+                        textShadowColor: "#000a",
+                        textShadowRadius: 4,
+                      }}
+                    >
+                      {selected ? "✓ " : ""}
+                      {label}
+                    </Text>
+                  </Wallpaper>
+                </Pressable>
+              );
+            })}
+          </View>
+        ))}
       </View>
       <Card>
         <Row style={{ justifyContent: "space-between" }}>

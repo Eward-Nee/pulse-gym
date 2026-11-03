@@ -211,3 +211,48 @@ test("oversized outgoing packets are rejected before they can clog the persisten
     /too large/,
   );
 });
+test("Time exercises carry weight and a duration, not a distance", async () => {
+  const { exerciseSummary, duration, validateWorkout } =
+    await import("../src/core/model");
+  const ex = {
+    id: "e1",
+    name: "Weighted plank",
+    kind: "time" as const,
+    sets: 3,
+    reps: 0,
+    kg: 10,
+    seconds: 45,
+    meters: 0,
+    rest: 60,
+    notes: "",
+  };
+  const w = { id: "w", name: "W", position: 0, notes: "", exercises: [ex] };
+  assert.doesNotThrow(() => validateWorkout(w));
+  assert.equal(exerciseSummary(ex), "3 × 45 s · 10 kg · 60s rest");
+  assert.equal(exerciseSummary({ ...ex, kg: 0 }), "3 × 45 s · 60s rest");
+  assert.equal(
+    exerciseSummary({ ...ex, seconds: 1200, kg: 0, rest: 0 }),
+    "3 × 20 min",
+  );
+  assert.equal(duration(150), "2 min 30 s");
+  // a time needs a duration; legacy time-with-distance rows stay valid
+  assert.throws(
+    () => validateWorkout({ ...w, exercises: [{ ...ex, seconds: 0 }] }),
+    /Add a time/,
+  );
+  assert.doesNotThrow(() =>
+    validateWorkout({ ...w, exercises: [{ ...ex, seconds: 0, meters: 200 }] }),
+  );
+  assert.equal(
+    exerciseSummary({ ...ex, seconds: 0, meters: 200, kg: 0 }),
+    "3 × 200 m · 60s rest",
+  );
+  // runs still need time or distance and never show weight
+  const run = { ...ex, kind: "run" as const, kg: 0, seconds: 0, meters: 500 };
+  assert.doesNotThrow(() => validateWorkout({ ...w, exercises: [run] }));
+  assert.equal(exerciseSummary(run), "3 × 500 m · 60s rest");
+  assert.throws(
+    () => validateWorkout({ ...w, exercises: [{ ...run, meters: 0 }] }),
+    /time or distance/,
+  );
+});

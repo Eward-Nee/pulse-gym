@@ -305,7 +305,9 @@ export const af: Record<string, string> = {
   WALLPAPER: "WALLPAPER",
   "Iron / warm": "Iron / warm",
   "Steel / cool": "Steel / koel",
+  "Together / rose": "Saam / roos",
   "Calm / solid": "Rustig / solied",
+  "Add a time.": "Voeg ’n tyd by.",
   "Reduce motion": "Verminder animasie",
   "Your race date is waiting.": "Jou wedrendatum wag.",
   "Beginner or regular training base, 3–5 days and editable weekly programs.":

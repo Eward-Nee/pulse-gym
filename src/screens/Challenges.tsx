@@ -12,6 +12,7 @@ import {
   Row,
   Sheet,
   T,
+  NAV_CLEARANCE,
 } from "../components/ui";
 import {
   type Snapshot,
@@ -209,7 +210,7 @@ export default function Challenges({
       data={list}
       keyExtractor={(c) => c.id}
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ padding: 22, paddingBottom: 30 }}
+      contentContainerStyle={{ padding: 22, paddingBottom: NAV_CLEARANCE }}
       ListHeaderComponent={
         <>
           <Label>{t("YOUR CIRCLE / A LITTLE COMPETITION")}</Label>

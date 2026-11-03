@@ -4,6 +4,7 @@ import { SCHEMA, SCHEMA_VERSION } from "../core/schema";
 import { t, isLanguage } from "../i18n";
 import {
   DEFAULT_SETTINGS,
+  WALLPAPERS,
   validateWorkout,
   type Snapshot,
   type Workout,
@@ -155,6 +156,8 @@ export async function snapshot(): Promise<Snapshot> {
   };
   if (!isLanguage(settings.language))
     settings.language = DEFAULT_SETTINGS.language;
+  if (!(WALLPAPERS as readonly string[]).includes(settings.wallpaper))
+    settings.wallpaper = DEFAULT_SETTINGS.wallpaper;
   return {
     workouts: w.map(decodeWorkout),
     friends: f.map(decodeFriend),

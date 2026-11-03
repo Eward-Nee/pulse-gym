@@ -58,11 +58,13 @@ export type ActiveSession = {
   startedAt: number;
   completedSets: Record<string, number>;
 };
+export const WALLPAPERS = ["iron", "steel", "rose", "plain"] as const;
+export type WallpaperId = (typeof WALLPAPERS)[number];
 export type Settings = {
   name: string;
   language: Language;
   theme: "pulse" | "couples";
-  wallpaper: "iron" | "steel" | "plain";
+  wallpaper: WallpaperId;
   reducedMotion: boolean;
   raceDate: string;
   level: "foundation" | "regular";
@@ -148,12 +150,12 @@ export function validateWorkout(w: Workout) {
       throw new Error(t("Reps must be whole numbers."));
     if ((e.kind === "strength" || e.kind === "bodyweight") && e.reps < 1)
       throw new Error(t("Add reps."));
-    if (
-      (e.kind === "run" || e.kind === "time") &&
-      e.seconds <= 0 &&
-      e.meters <= 0
-    )
+    if (e.kind === "run" && e.seconds <= 0 && e.meters <= 0)
       throw new Error(t("Add time or distance."));
+    // Time exercises are timed holds/carries with optional weight. Older ones that
+    // only have a distance stay valid.
+    if (e.kind === "time" && e.seconds <= 0 && e.meters <= 0)
+      throw new Error(t("Add a time."));
   }
   return w;
 }
@@ -190,12 +192,26 @@ export const EXERCISE_LABELS = {
   run: "Run / distance",
   time: "Time",
 };
+/** 45 -> "45 s", 120 -> "2 min", 150 -> "2 min 30 s". */
+export function duration(seconds: number) {
+  const m = Math.floor(seconds / 60),
+    r = Math.round(seconds % 60);
+  return m ? (r ? `${m} min ${r} s` : `${m} min`) : `${r} s`;
+}
 export function exerciseSummary(e: Exercise) {
-  const work =
-    e.kind === "strength" || e.kind === "bodyweight"
+  const reps = e.kind === "strength" || e.kind === "bodyweight",
+    work = reps
       ? t("{n} reps", { n: e.reps })
-      : e.meters
-        ? e.meters + " m"
-        : Math.round(e.seconds / 60) + " min";
-  return `${e.sets} × ${work}${e.kind === "strength" ? " · " + e.kg + " kg" : ""}${e.rest ? " · " + t("{n}s rest", { n: e.rest }) : ""}`;
+      : e.kind === "time" && e.seconds > 0
+        ? duration(e.seconds)
+        : e.meters
+          ? e.meters + " m"
+          : duration(e.seconds);
+  const weight =
+    e.kind === "strength"
+      ? " · " + e.kg + " kg"
+      : e.kind === "time" && e.kg > 0
+        ? " · " + e.kg + " kg"
+        : "";
+  return `${e.sets} × ${work}${weight}${e.rest ? " · " + t("{n}s rest", { n: e.rest }) : ""}`;
 }

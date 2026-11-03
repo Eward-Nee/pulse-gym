@@ -12,6 +12,7 @@ import {
   Row,
   T,
   useTheme,
+  NAV_CLEARANCE,
 } from "../components/ui";
 import { t, tn } from "../i18n";
 import {
@@ -60,7 +61,7 @@ export default function Home({
     <FlatList
       data={data.workouts}
       keyExtractor={(w) => w.id}
-      contentContainerStyle={{ padding: 22, paddingBottom: 30 }}
+      contentContainerStyle={{ padding: 22, paddingBottom: NAV_CLEARANCE }}
       initialNumToRender={8}
       showsVerticalScrollIndicator={false}
       ListHeaderComponent={

@@ -27,6 +27,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { t } from "../i18n";
+import type { WallpaperId } from "../core/model";
 export const palettes = {
   pulse: {
     bg: "#111217",
@@ -404,36 +405,100 @@ export function Sheet({
     </Modal>
   );
 }
-export type Wallpaper = "iron" | "steel" | "plain";
-/** Photo wallpaper with a tint, or a solid themed gradient. Fills its parent; put content on top. */
+/** The generated gym photograph is 941 x 1672 (portrait). */
+const PHOTO = { width: 941, height: 1672 };
+// Light colour treatments over the photo; `tint` is [r, g, b, alpha].
+const TREATMENTS = {
+  iron: { tint: [224, 128, 46, 0.2] },
+  steel: { tint: [63, 134, 200, 0.28] },
+  rose: { tint: [208, 88, 124, 0.3] },
+} as const;
+const hex = (n: number) =>
+  Math.round(Math.max(0, Math.min(1, n)) * 255)
+    .toString(16)
+    .padStart(2, "0");
+/**
+ * The photo (iron / steel / rose treatments) or a solid themed gradient (plain).
+ * Fills its parent; put content on top. `focus` is the vertical centre of the
+ * visible window as a fraction of the photo: the equipment sits in its lower half,
+ * the top is empty dark wall. `scrim` darkens the bottom for text.
+ */
 export function Wallpaper({
   wallpaper,
   couples,
+  focus = 0.7,
+  scrim = 0.7,
   children,
   style,
 }: React.PropsWithChildren<{
-  wallpaper: Wallpaper;
+  wallpaper: WallpaperId;
   couples: boolean;
+  focus?: number;
+  scrim?: number;
   style?: ViewStyle;
 }>) {
-  const tint: [string, string] =
-    wallpaper === "iron"
-      ? ["#b4552a55", "#111217e6"]
-      : wallpaper === "steel"
-        ? ["#2b6fa655", "#0b1825ee"]
-        : couples
-          ? ["#9c4b60", "#4a2230"]
-          : ["#2b2d38", "#15161c"];
+  const [box, setBox] = useState({ width: 0, height: 0 });
+  // Cover the box, then slide the photo so the window is centred on `focus`.
+  const imgW = Math.max(box.width, (box.height * PHOTO.width) / PHOTO.height),
+    imgH = (imgW * PHOTO.height) / PHOTO.width,
+    top = -Math.max(
+      0,
+      Math.min(imgH - box.height, imgH * focus - box.height / 2),
+    ),
+    left = -(imgW - box.width) / 2;
   return (
-    <View style={[{ overflow: "hidden", backgroundColor: "#111217" }, style]}>
-      {wallpaper !== "plain" && (
-        <Image
-          source={require("../../assets/gym-wallpaper.jpg")}
-          resizeMode="cover"
+    <View
+      onLayout={(e) => {
+        const { width, height } = e.nativeEvent.layout;
+        setBox((b) =>
+          b.width === width && b.height === height ? b : { width, height },
+        );
+      }}
+      style={[{ overflow: "hidden", backgroundColor: "#111217" }, style]}
+    >
+      {wallpaper === "plain" ? (
+        <LinearGradient
+          colors={couples ? ["#9c4b60", "#4a2230"] : ["#2b2d38", "#15161c"]}
           style={StyleSheet.absoluteFill}
         />
+      ) : (
+        <>
+          {box.width > 0 && (
+            <Image
+              source={require("../../assets/gym-wallpaper.jpg")}
+              resizeMode="cover"
+              fadeDuration={0}
+              style={{
+                position: "absolute",
+                width: imgW,
+                height: imgH,
+                top,
+                left,
+              }}
+            />
+          )}
+          <View
+            pointerEvents="none"
+            style={[
+              StyleSheet.absoluteFill,
+              {
+                backgroundColor: `rgba(${TREATMENTS[wallpaper].tint[0]},${TREATMENTS[wallpaper].tint[1]},${TREATMENTS[wallpaper].tint[2]},${TREATMENTS[wallpaper].tint[3]})`,
+              },
+            ]}
+          />
+          <LinearGradient
+            pointerEvents="none"
+            colors={["#11121700", `#111217${hex(scrim)}`]}
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              top: "35%",
+            }}
+          />
+        </>
       )}
-      <LinearGradient colors={tint} style={StyleSheet.absoluteFill} />
       {children}
     </View>
   );
@@ -444,7 +509,7 @@ export function Hero({
   onPress,
 }: {
   couples: boolean;
-  wallpaper: Wallpaper;
+  wallpaper: WallpaperId;
   onPress: () => void;
 }) {
   return (
@@ -581,6 +646,158 @@ export function ProgressBar({ value }: { value: number }) {
           }),
         }}
       />
+    </View>
+  );
+}
+/** Scroll content must end this far above the bottom so the floating tab bar never hides it. */
+export const NAV_CLEARANCE = 108;
+type TabSpec<K extends string> = {
+  key: K;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+};
+/**
+ * Floating bottom tab bar. Its outer container has no background, so screen
+ * content scrolls behind it. One animated position drives everything: a pill
+ * that slides (and stretches slightly) between tabs, and a cross-fade plus a
+ * small pop on the icon and label of the selected tab.
+ */
+export function TabBar<K extends string>({
+  tabs,
+  active,
+  onChange,
+}: {
+  tabs: TabSpec<K>[];
+  active: K;
+  onChange: (key: K) => void;
+}) {
+  const { c, reduced } = useTheme(),
+    index = Math.max(
+      0,
+      tabs.findIndex((t) => t.key === active),
+    ),
+    pos = useRef(new Animated.Value(index)).current,
+    mounted = useRef(false),
+    [width, setWidth] = useState(0),
+    PAD = 5,
+    tabWidth = width ? (width - PAD * 2) / tabs.length : 0;
+  useEffect(() => {
+    if (reduced || !mounted.current) {
+      mounted.current = true;
+      pos.setValue(index);
+      return;
+    }
+    const run = Animated.spring(pos, {
+      toValue: index,
+      stiffness: 260,
+      damping: 21,
+      mass: 0.9,
+      useNativeDriver: true,
+    });
+    run.start();
+    return () => run.stop();
+  }, [index, reduced, pos]);
+  const slots = tabs.map((_, i) => i),
+    halves = slots.flatMap((i) => (i ? [i - 0.5, i] : [i]));
+  const body = (tab: TabSpec<K>, color: string) => (
+    <View style={{ alignItems: "center", paddingVertical: 11, gap: 4 }}>
+      <Ionicons name={tab.icon} size={20} color={color} />
+      <Text style={{ fontSize: 11, fontWeight: "700", color }}>
+        {tab.label}
+      </Text>
+    </View>
+  );
+  return (
+    <View
+      pointerEvents="box-none"
+      style={{
+        position: "absolute",
+        left: 0,
+        right: 0,
+        bottom: 0,
+        paddingHorizontal: 22,
+        paddingTop: 8,
+        paddingBottom: Platform.OS === "web" ? 16 : 5,
+      }}
+    >
+      <View
+        onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+        style={{
+          backgroundColor: c.surface,
+          borderRadius: 28,
+          padding: PAD,
+          flexDirection: "row",
+          borderWidth: 1,
+          borderColor: c.line,
+        }}
+      >
+        {tabWidth > 0 && (
+          <Animated.View
+            pointerEvents="none"
+            style={{
+              position: "absolute",
+              top: PAD,
+              bottom: PAD,
+              left: PAD,
+              width: tabWidth,
+              borderRadius: 24,
+              backgroundColor: c.accent,
+              transform: [
+                {
+                  translateX: pos.interpolate({
+                    inputRange: slots,
+                    outputRange: slots.map((i) => i * tabWidth),
+                  }),
+                },
+                {
+                  scaleX: pos.interpolate({
+                    inputRange: halves,
+                    outputRange: halves.map((h) => (h % 1 ? 1.1 : 1)),
+                  }),
+                },
+              ],
+            }}
+          />
+        )}
+        {tabs.map((tab, i) => {
+          const near = (outside: number, inside: number) =>
+            pos.interpolate({
+              inputRange: [i - 1, i, i + 1],
+              outputRange: [outside, inside, outside],
+              extrapolate: "clamp",
+            });
+          return (
+            <Pressable
+              key={tab.key}
+              accessibilityRole="tab"
+              accessibilityLabel={tab.label}
+              accessibilityState={{ selected: tab.key === active }}
+              onPress={() => {
+                if (Platform.OS !== "web" && !reduced)
+                  void Haptics.selectionAsync().catch(() => {});
+                onChange(tab.key);
+              }}
+              style={{ flex: 1 }}
+            >
+              <Animated.View style={{ opacity: near(1, 0) }}>
+                {body(tab, c.muted)}
+              </Animated.View>
+              <Animated.View
+                pointerEvents="none"
+                importantForAccessibility="no-hide-descendants"
+                accessibilityElementsHidden
+                style={{
+                  ...StyleSheet.absoluteFill,
+                  opacity: near(0, 1),
+                  transform: [{ scale: near(0.88, 1) }],
+                }}
+              >
+                {body(tab, c.on)}
+              </Animated.View>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }

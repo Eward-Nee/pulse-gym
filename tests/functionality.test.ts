@@ -576,3 +576,13 @@ test("update download reports live progress in MB, then verification and install
   assert.ok(failed.every((p) => p.phase === "downloading"));
   sqlite.close();
 });
+test("wallpaper setting: all four options persist and unknown values fall back", async () => {
+  const { app, sqlite } = await device("192.168.1.10");
+  for (const wallpaper of ["steel", "rose", "plain", "iron"]) {
+    await app.updateSettings({ wallpaper });
+    assert.equal((await app.snapshot()).settings.wallpaper, wallpaper);
+  }
+  await app.updateSettings({ wallpaper: "neon" });
+  assert.equal((await app.snapshot()).settings.wallpaper, "iron");
+  sqlite.close();
+});

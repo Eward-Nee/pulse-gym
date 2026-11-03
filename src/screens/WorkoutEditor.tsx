@@ -145,7 +145,9 @@ export default function WorkoutEditor({
                 onPress={() =>
                   edit(i, {
                     kind: kind as Exercise["kind"],
-                    kg: kind === "strength" ? e.kg : 0,
+                    // Weight belongs to Weight and Time; distance only to Run.
+                    kg: kind === "strength" || kind === "time" ? e.kg : 0,
+                    meters: kind === "run" ? e.meters : 0,
                   })
                 }
               />
@@ -164,21 +166,21 @@ export default function WorkoutEditor({
                 onChange={(reps) => edit(i, { reps })}
               />
             )}
-            {e.kind === "strength" && (
-              <NumberField
-                label={t("Weight (kg)")}
-                value={e.kg}
-                onChange={(kg) => edit(i, { kg })}
-              />
-            )}
-            {["run", "time"].includes(e.kind) && (
+            {(e.kind === "run" || e.kind === "time") && (
               <NumberField
                 label={t("Time (seconds)")}
                 value={e.seconds}
                 onChange={(seconds) => edit(i, { seconds })}
               />
             )}
-            {["run", "time"].includes(e.kind) && (
+            {(e.kind === "strength" || e.kind === "time") && (
+              <NumberField
+                label={t("Weight (kg)")}
+                value={e.kg}
+                onChange={(kg) => edit(i, { kg })}
+              />
+            )}
+            {e.kind === "run" && (
               <NumberField
                 label={t("Distance (meters)")}
                 value={e.meters}

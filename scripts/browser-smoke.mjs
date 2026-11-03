@@ -95,6 +95,37 @@ await wait(400);
 if (!sliding) throw Error("No slide transition detected on tab change");
 console.log("PASS tab change animates");
 
+// The floating tab bar: transparent container, and its pill glides between tabs.
+const barBackground = await run(
+  `(()=>{const tab=document.querySelector('[role="tab"]');const container=tab.parentElement.parentElement;return getComputedStyle(container).backgroundColor+'|'+getComputedStyle(container).position})()`,
+);
+if (!/^rgba\(0, 0, 0, 0\)\|absolute$/.test(barBackground))
+  throw Error(
+    "Tab bar container is not a transparent overlay: " + barBackground,
+  );
+const pillX = () =>
+  run(
+    `document.querySelector('[role="tab"]').parentElement.firstElementChild.getBoundingClientRect().left`,
+  );
+const startX = await pillX();
+await run(
+  `[...document.querySelectorAll('[role="tab"]')].find(e=>e.textContent.trim().endsWith('Home')).click()`,
+);
+await wait(70);
+const midX = await pillX();
+await wait(900);
+const endX = await pillX();
+if (!(endX < startX - 40 && midX < startX - 1 && midX > endX + 1))
+  throw Error(`Tab pill did not glide: ${startX} -> ${midX} -> ${endX}`);
+console.log(
+  "PASS tab bar is transparent and the pill glides",
+  startX,
+  midX,
+  endX,
+);
+await click("Setup");
+await wait(500);
+
 // No visible scrollbars on any scroll container.
 const bars = await run(
   `[...document.querySelectorAll('*')].filter(e=>{const s=getComputedStyle(e);return /(auto|scroll)/.test(s.overflowY)&&e.scrollHeight>e.clientHeight+1&&s.scrollbarWidth!=='none'}).length`,
@@ -104,7 +135,12 @@ console.log("PASS no scrollbars");
 
 // Wallpapers: all three previews exist and the picker changes the Home hero.
 await shot("02-setup-wallpapers");
-for (const w of ["Steel / cool", "Calm / solid", "Iron / warm"]) {
+for (const w of [
+  "Steel / cool",
+  "Together / rose",
+  "Calm / solid",
+  "Iron / warm",
+]) {
   await click(w);
   await shot("03-wallpaper-" + w.split(" ")[0].toLowerCase());
 }
@@ -139,6 +175,20 @@ await fill("Workout name", "Browser persistence check");
 await click("Add exercise");
 await fill("Exercise", "Test squat");
 await shot("05-builder");
+await click("Time");
+await wait(200);
+await expect("Weight (kg)", "Time exercises must have a weight field");
+await gone(
+  "Distance (meters)",
+  "Time exercises must not have a distance field",
+);
+await shot("05b-builder-time");
+await click("Run / distance");
+await wait(200);
+await expect("Distance (meters)", "Run exercises keep their distance field");
+await gone("Weight (kg)", "Run exercises must not have a weight field");
+await click("Weight");
+await wait(200);
 await run(
   `(()=>{const m=document.querySelector('[role="dialog"],div[aria-modal="true"]');(m||document.body).scrollTo?.(0,400)})()`,
 );
