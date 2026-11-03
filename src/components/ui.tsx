@@ -544,3 +544,43 @@ export function ScreenTransition({
     </Animated.View>
   );
 }
+/** Determinate progress bar. `value` is 0..1; the fill eases to each new value. */
+export function ProgressBar({ value }: { value: number }) {
+  const { c, reduced } = useTheme(),
+    fill = useRef(new Animated.Value(0)).current,
+    pct = Math.max(0, Math.min(1, value || 0));
+  useEffect(() => {
+    if (reduced) fill.setValue(pct);
+    else
+      Animated.timing(fill, {
+        toValue: pct,
+        duration: 160,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: false,
+      }).start();
+  }, [pct, reduced, fill]);
+  return (
+    <View
+      accessibilityRole="progressbar"
+      accessibilityValue={{ min: 0, max: 100, now: Math.round(pct * 100) }}
+      style={{
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: c.raised,
+        overflow: "hidden",
+      }}
+    >
+      <Animated.View
+        style={{
+          height: "100%",
+          borderRadius: 5,
+          backgroundColor: c.accent,
+          width: fill.interpolate({
+            inputRange: [0, 1],
+            outputRange: ["0%", "100%"],
+          }),
+        }}
+      />
+    </View>
+  );
+}

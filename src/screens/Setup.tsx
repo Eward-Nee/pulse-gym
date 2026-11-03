@@ -21,6 +21,7 @@ import {
   Heading,
   Label,
   Pill,
+  ProgressBar,
   Row,
   Sheet,
   T,
@@ -40,11 +41,35 @@ import {
   shareSnapshot,
 } from "../services/peers";
 import { useNotificationPermission } from "../services/notifications";
+import { megabytes, type UpdateProgress } from "../services/updates";
 import {
-  checkRelease,
-  installRelease,
-  type Release,
-} from "../services/updates";
+  check as checkUpdate,
+  install as installUpdate,
+  useUpdater,
+} from "../services/updater";
+function UpdateProgressView({ progress }: { progress: UpdateProgress }) {
+  if (progress.phase === "installing")
+    return <T bold>{t("Opening installer…")}</T>;
+  const { received, total } = progress,
+    fraction = total > 0 ? received / total : 0,
+    pct = Math.round(fraction * 100);
+  return (
+    <View>
+      <T bold size={12} style={{ marginBottom: 8 }}>
+        {progress.phase === "verifying"
+          ? t("Verifying download… {pct}%", { pct })
+          : total > 0
+            ? t("Downloading… {done} / {total} MB · {pct}%", {
+                done: megabytes(received),
+                total: megabytes(total),
+                pct,
+              })
+            : t("Downloading… {done} MB", { done: megabytes(received) })}
+      </T>
+      <ProgressBar value={fraction} />
+    </View>
+  );
+}
 export type Act = (task: () => Promise<unknown>, message?: string) => void;
 export default function Setup({
   data,
@@ -68,10 +93,9 @@ export default function Setup({
     [invite, setInvite] = useState<Invite | null>(null),
     [myCode, setMyCode] = useState(""),
     [id, setId] = useState(""),
-    [friendId, showFriend] = useState<string | null>(null),
-    [release, setRelease] = useState<Release | null>(null),
-    [working, setWorking] = useState(false),
-    [note, setNote] = useState("");
+    [friendId, showFriend] = useState<string | null>(null);
+  const updater = useUpdater(),
+    { release, progress } = updater;
   const friend = data.friends.find((f) => f.id === friendId),
     partner = data.friends.find((f) => f.id === data.partnerId),
     eligible = data.friends.filter(
@@ -434,21 +458,14 @@ export default function Setup({
           {t("Look for the latest Pulse Gym version. No setup needed.")}
         </T>
         <Button
-          label={working ? t("Checking…") : t("Check for update")}
-          disabled={working}
+          label={updater.checking ? t("Checking…") : t("Check for update")}
+          disabled={updater.checking || !!progress}
           icon="download-outline"
-          onPress={() => {
-            setWorking(true);
-            act(async () => {
-              try {
-                const result = await checkRelease();
-                setRelease(result);
-              } finally {
-                setWorking(false);
-              }
-            });
-          }}
+          onPress={() => void checkUpdate()}
         />
+        {!!updater.error && (
+          <T style={{ color: "#e97777", marginTop: 12 }}>{updater.error}</T>
+        )}
         {release && (
           <View style={{ marginTop: 16 }}>
             <T bold>
@@ -460,27 +477,20 @@ export default function Setup({
             <T muted size={12} style={{ marginVertical: 10 }}>
               {release.notes}
             </T>
-            {release.newer && (
-              <Button
-                label={
-                  working
-                    ? t("Downloading & verifying…")
-                    : release.apk && Platform.OS === "android"
+            {progress ? (
+              <UpdateProgressView progress={progress} />
+            ) : (
+              release.newer && (
+                <Button
+                  label={
+                    release.apk && Platform.OS === "android"
                       ? t("Download APK & open installer")
                       : t("Open GitHub release")
-                }
-                disabled={working}
-                onPress={() => {
-                  setWorking(true);
-                  act(async () => {
-                    try {
-                      await installRelease(release);
-                    } finally {
-                      setWorking(false);
-                    }
-                  });
-                }}
-              />
+                  }
+                  disabled={updater.checking}
+                  onPress={() => void installUpdate()}
+                />
+              )
             )}
           </View>
         )}
@@ -490,7 +500,6 @@ export default function Setup({
           )}
         </T>
       </Card>
-      {!!note && <T style={{ color: c.accent }}>{note}</T>}
       <T size={11} muted style={{ textAlign: "center" }}>
         Pulse Gym {appConfig.expo.version} · {t("SQLite on your device")}
       </T>

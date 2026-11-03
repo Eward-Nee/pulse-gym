@@ -34,6 +34,10 @@ The supplied localhost server sets COOP/COEP headers needed by Expo SQLite's WAS
 
 Transfer `builds/pulse-gym-0.1.1-arm64.apk` to an ARM64 Android phone and open it. Allow installation from that file app when Android asks. This is a standalone build: Metro and Expo Go are not needed. Keep the signing key backed up privately before distributing future updates. This build has not yet been run on a physical phone; use the two-phone checklist below before relying on peer delivery.
 
+## What's new in 0.1.3
+
+Live download progress (megabytes and a progress bar) for in-app updates. See [v0.1.3 test report](docs/TESTING-0.1.3.md).
+
 ## What's new in 0.1.2
 
 English (default) and Afrikaans, cancel active workouts, a non-overlapping workout builder, page transitions, wallpaper previews, hidden scrollbars, a Show/Hide ID toggle, and a set of local-storage and sync fixes. See [v0.1.2 test report](docs/TESTING-0.1.2.md).

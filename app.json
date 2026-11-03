@@ -2,7 +2,7 @@
   "expo": {
     "name": "Pulse Gym",
     "slug": "pulse-gym",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -15,7 +15,7 @@
     },
     "android": {
       "package": "app.pulsegym.local",
-      "versionCode": 3,
+      "versionCode": 4,
       "permissions": [
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE",

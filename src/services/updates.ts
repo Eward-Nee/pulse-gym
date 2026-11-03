@@ -76,7 +76,17 @@ export async function checkRelease(): Promise<Release> {
     clearTimeout(timeout);
   }
 }
-export async function installRelease(release: Release) {
+export type UpdateProgress =
+  | { phase: "downloading"; received: number; total: number }
+  | { phase: "verifying"; received: number; total: number }
+  | { phase: "installing" };
+/** Bytes as megabytes with one decimal, e.g. 34257123 -> "32.7". */
+export const megabytes = (bytes: number) =>
+  (Math.max(0, bytes) / 1048576).toFixed(1);
+export async function installRelease(
+  release: Release,
+  onProgress?: (p: UpdateProgress) => void,
+) {
   if (!release.newer) throw new Error(t("No newer version to install."));
   if (Platform.OS !== "android" || !release.apk) {
     await Linking.openURL(release.url);
@@ -88,10 +98,41 @@ export async function installRelease(release: Release) {
   const { bytesToHex } = await import("@noble/hashes/utils.js");
   const Intent = await import("expo-intent-launcher");
   const target = FS.cacheDirectory + "pulse-update.apk";
-  await FS.downloadAsync(release.apk.url, target);
+  // Progress can fire many times a second; the UI only needs ~10 updates/s.
+  let last = 0;
+  const report = (p: UpdateProgress, force = false) => {
+    const now = Date.now();
+    if (!onProgress || (!force && now - last < 100)) return;
+    last = now;
+    onProgress(p);
+  };
+  const expected = release.apk.size || 0;
+  report({ phase: "downloading", received: 0, total: expected }, true);
+  const download = FS.createDownloadResumable(
+    release.apk.url,
+    target,
+    {},
+    ({ totalBytesWritten, totalBytesExpectedToWrite }) =>
+      report({
+        phase: "downloading",
+        received: totalBytesWritten,
+        // -1 means the server sent no Content-Length; fall back to GitHub's asset size.
+        total:
+          totalBytesExpectedToWrite > 0 ? totalBytesExpectedToWrite : expected,
+      }),
+  );
+  const result = await download.downloadAsync();
+  if (!result || result.status < 200 || result.status > 299) {
+    await FS.deleteAsync(target, { idempotent: true });
+    throw new Error(
+      t("The download failed. Check your connection and try again."),
+    );
+  }
   const hash = sha256.create(),
     file = new File(target),
+    size = file.size,
     handle = file.open();
+  report({ phase: "downloading", received: size, total: size }, true);
   try {
     let count = 0;
     while (handle.offset !== null && handle.offset < file.size) {
@@ -100,17 +141,24 @@ export async function installRelease(release: Release) {
           Math.min(1024 * 1024, file.size - handle.offset),
         ),
       );
+      report({
+        phase: "verifying",
+        received: handle.offset ?? size,
+        total: size,
+      });
       if (++count % 4 === 0) await new Promise((r) => setTimeout(r, 0));
     }
   } finally {
     handle.close();
   }
+  report({ phase: "verifying", received: size, total: size }, true);
   if ("sha256:" + bytesToHex(hash.digest()) !== release.apk.digest) {
     await FS.deleteAsync(target, { idempotent: true });
     throw new Error(
       t("The download checksum does not match. Installation stopped."),
     );
   }
+  report({ phase: "installing" }, true);
   const uri = await FS.getContentUriAsync(target);
   await Intent.startActivityAsync("android.intent.action.VIEW", {
     data: uri,

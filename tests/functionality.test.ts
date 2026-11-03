@@ -35,7 +35,7 @@ const bundled = build({
             "export const Platform={OS:'android'}, Linking={openURL:async u=>__test.links.push(u)}, AppState={addEventListener:()=>({remove(){}})};",
           "expo-constants": "export default {expoConfig:{version:'0.1.0'}};",
           "expo-file-system/legacy":
-            "export const cacheDirectory='cache/'; export const downloadAsync=async()=>{}; export const deleteAsync=async()=>{__test.deleted=true}; export const getContentUriAsync=async()=> 'content://pulse/update.apk';",
+            "export const cacheDirectory='cache/'; export const createDownloadResumable=(url,uri,o,cb)=>({downloadAsync:async()=>{for(const n of __test.chunks||[]){await new Promise(r=>setTimeout(r,110));cb&&cb({totalBytesWritten:n,totalBytesExpectedToWrite:__test.expected??-1})}return __test.downloadResult||{status:200,uri}}}); export const deleteAsync=async()=>{__test.deleted=true}; export const getContentUriAsync=async()=> 'content://pulse/update.apk';",
           "expo-file-system":
             "export class File {get size(){return __test.apk.length} open(){return {offset:0,readBytes(n){const b=__test.apk.subarray(this.offset,this.offset+n);this.offset+=n;return b},close(){}}}}",
           "expo-intent-launcher":
@@ -519,5 +519,60 @@ test("language preference defaults to English, persists, and rejects unknown val
   assert.equal((await app.snapshot()).settings.language, "af");
   await app.updateSettings({ language: "xx" });
   assert.equal((await app.snapshot()).settings.language, "en");
+  sqlite.close();
+});
+test("update download reports live progress in MB, then verification and install", async () => {
+  const { app, env, sqlite } = await device("192.168.1.10");
+  const release = {
+    version: "v0.1.4",
+    newer: true,
+    url: "https://github.com/Eward-Nee/pulse-gym/releases/tag/v0.1.4",
+    notes: "",
+    apk: {
+      url: "https://example.invalid/test.apk",
+      digest: "sha256:" + createHash("sha256").update(env.apk).digest("hex"),
+      size: 3,
+    },
+  };
+  assert.equal(app.megabytes(34257123), "32.7");
+  assert.equal(app.megabytes(0), "0.0");
+  assert.equal(app.megabytes(-5), "0.0");
+  env.chunks = [1, 2];
+  const seen: any[] = [];
+  await app.installRelease(release, (p: any) => seen.push(p));
+  // size falls back to GitHub's asset size when the server sends no Content-Length
+  assert.deepEqual(seen[0], { phase: "downloading", received: 0, total: 3 });
+  const mid = seen.filter((p) => p.phase === "downloading" && p.received === 1);
+  assert.deepEqual(mid, [{ phase: "downloading", received: 1, total: 3 }]);
+  const received = seen
+    .filter((p) => p.phase === "downloading")
+    .map((p) => p.received);
+  assert.deepEqual(
+    received,
+    [...received].sort((a, b) => a - b),
+  );
+  assert.deepEqual(
+    seen.map((p) => p.phase).filter((p, i, a) => a.indexOf(p) === i),
+    ["downloading", "verifying", "installing"],
+  );
+  assert.deepEqual(seen.at(-1), { phase: "installing" });
+  assert.ok(seen.some((p) => p.phase === "verifying" && p.received === 3));
+  assert.equal(env.installs.length, 1);
+  // the server's own length wins when it sends one
+  env.expected = 3000;
+  const again: any[] = [];
+  await app.installRelease(release, (p: any) => again.push(p));
+  assert.ok(again.some((p) => p.phase === "downloading" && p.total === 3000));
+  // a failed HTTP status stops before verification or installation
+  env.downloadResult = { status: 404 };
+  env.deleted = false;
+  const failed: any[] = [];
+  await assert.rejects(
+    app.installRelease(release, (p: any) => failed.push(p)),
+    /download failed/,
+  );
+  assert.equal(env.deleted, true);
+  assert.equal(env.installs.length, 2);
+  assert.ok(failed.every((p) => p.phase === "downloading"));
   sqlite.close();
 });

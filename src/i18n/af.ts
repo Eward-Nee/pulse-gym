@@ -358,7 +358,13 @@ export const af: Record<string, string> = {
   "Check for update": "Soek opdatering",
   "New version available": "Nuwe weergawe beskikbaar",
   "No newer stable version": "Geen nuwer stabiele weergawe nie",
-  "Downloading & verifying…": "Laai af & verifieer…",
+  "Downloading… {done} / {total} MB · {pct}%":
+    "Laai af… {done} / {total} MB · {pct}%",
+  "Downloading… {done} MB": "Laai af… {done} MB",
+  "Verifying download… {pct}%": "Verifieer aflaai… {pct}%",
+  "Opening installer…": "Maak installeerder oop…",
+  "The download failed. Check your connection and try again.":
+    "Die aflaai het misluk. Kontroleer jou verbinding en probeer weer.",
   "Download APK & open installer": "Laai APK af & open installeerder",
   "Open GitHub release": "Open GitHub-release",
   "Install a built release, not source code. Android confirms the installation; iPhone distribution needs Apple’s supported route.":
